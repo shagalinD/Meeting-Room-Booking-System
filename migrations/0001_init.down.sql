@@ -1,0 +1,10 @@
+DROP TABLE IF EXISTS bookings;
+DROP TYPE IF EXISTS booking_status;
+DROP INDEX IF EXISTS bookings_index;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS rooms;
+DROP INDEX IF EXISTS users_email_index;
+DROP INDEX IF EXISTS users_role_index;
+DROP TYPE IF EXISTS booking_status;
+DROP TYPE IF EXISTS user_role;
+DROP EXTENSION IF EXISTS "uuid-ossp";

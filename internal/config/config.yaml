@@ -1,0 +1,32 @@
+postgres:
+  user: 'postgres'
+  password: '12345678'
+  name: 'postgres'
+  port: '5432'
+  host: 'localhost'
+  connect_timeout: '5s'
+  query_timeout: '10s'
+  max_open_conns: 25
+  max_idle_conns: 25
+  conn_max_lifetime: '5m'
+  conn_max_idle_time: '1m'
+
+redis:
+  user: 'default'
+  password: '12345678'
+  port: '6379'
+  host: 'localhost'
+  index: 0
+  dial_timeout: '5s'
+  read_timeout: '3s'
+  write_timeout: '3s'
+
+server:
+  log_level: 'debug'
+  jwt_secret: 'my_jwt_secret'
+  port: '8081'
+  read_timeout: '5s'
+  read_header_timeout: '2s'
+  write_timeout: '10s'
+  idle_timeout: '60s'
+  shutdown_timeout: '15s'

@@ -1,0 +1,24 @@
+# Binaries
+/bin/
+/dist/
+
+# Test coverage
+coverage.out
+*.test
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+/vendor/
