@@ -8,10 +8,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/shdmitri/booking-service/internal/config"
-	"github.com/shdmitri/booking-service/internal/repository"
 	"github.com/shdmitri/booking-service/pkg/logger"
 )
 
@@ -22,7 +20,7 @@ func assignUsers(mx *http.ServeMux) {
 }
 
 func assignAuth(mx *http.ServeMux) {
-	mx.Handle("/users/", http.StripPrefix("/users", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request	) {
+	mx.Handle("/users/", http.StripPrefix("/users", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 	})))
 }
@@ -36,7 +34,7 @@ func assignHandlers(mx *http.ServeMux) {
 }
 
 func main() {
-	// Config 
+	// Config
 	if err := config.LoadConfig(); err != nil {
 		panic(err)
 	}
@@ -44,7 +42,6 @@ func main() {
 	// Logger
 	logger := logger.NewLogger(config.AppConfig.Server.LogLevel)
 	logger.Info("Connecting to PostgreSQL database...")
-
 
 	// DBs connection
 	dsn := fmt.Sprintf(
@@ -54,10 +51,10 @@ func main() {
 		config.AppConfig.Postgres.Name,
 		config.AppConfig.Postgres.User,
 		config.AppConfig.Postgres.Password,
-	)	
+	)
 
-	_, err := repository.ConnectDB(dsn)
-	
+	_, err := config.ConnectDB(&config.AppConfig.Postgres, dsn)
+
 	if err != nil {
 		panic(err)
 	} else {
@@ -65,22 +62,26 @@ func main() {
 	}
 
 	logger.Info("Connecting to Redis database...")
-	_, err = repository.ConnectRedis(&config.AppConfig.Redis)
+	_, err = config.ConnectRedis(&config.AppConfig.Redis)
 
 	if err != nil {
 		panic(err)
-	}	
+	}
 	logger.Info("Successfully connected to Redis database!")
 
 	// Starting server
-	logger.Info("Starting server on port" + config.AppConfig.Server.Port)
+	logger.Info("Starting server on port " + config.AppConfig.Server.Port)
 
 	mx := http.NewServeMux()
 	assignHandlers(mx)
 
 	srv := &http.Server{
-		Addr:    config.AppConfig.Server.Port,
-		Handler: mx,
+		Addr:              ":" + config.AppConfig.Server.Port,
+		Handler:           mx,
+		ReadTimeout:       config.AppConfig.Server.ReadTimeout,
+		ReadHeaderTimeout: config.AppConfig.Server.ReadHeaderTimeout,
+		WriteTimeout:      config.AppConfig.Server.WriteTimeout,
+		IdleTimeout:       config.AppConfig.Server.IdleTimeout,
 	}
 
 	go func() {
@@ -89,7 +90,7 @@ func main() {
 		} else {
 		}
 	}()
-	logger.Info("Server successfully started: http://localhost" + config.AppConfig.Server.Port + "/health")
+	logger.Info("Server successfully started: http://localhost:" + config.AppConfig.Server.Port + "/health")
 
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
@@ -97,9 +98,9 @@ func main() {
 	<-quit
 	logger.Info("Получен сигнал для завершения! Закрываем сервер...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), config.AppConfig.Server.ShutdownTimeout)
 	defer cancel()
-	
+
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatal("Ошибка при graceful shutdown:", err)
 	}

@@ -17,6 +17,19 @@ services:
       - '${POSTGRES_PORT}:5432'
     volumes:
       - postgres_volume:/var/lib/postgresql
+
+  adminer:
+    image: adminer:latest
+    ports:
+      - '8083:8080'
+    environment:
+      ADMINER_DEFAULT_SERVER: ${POSTGRES_HOST}
+      ADMINER_DEFAULT_USER: ${POSTGRES_USER}
+      ADMINER_DEFAULT_PASSWORD: ${POSTGRES_PASSWORD}
+      ADMINER_DEFAULT_DB: ${POSTGRES_DB}
+    depends_on:
+      - database
+
   cache:
     image: redis:latest
     environment:
