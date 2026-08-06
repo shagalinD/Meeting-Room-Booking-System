@@ -12,6 +12,7 @@ type User struct {
 	PasswordHash string
 	FirstName    string
 	LastName     string
+	Role string 
 }
 
 type UserRepository interface {

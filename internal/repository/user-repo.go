@@ -17,12 +17,24 @@ func NewUserRepository(pool *pgxpool.Pool) *UserRepository {
 	return &UserRepository{db.New(pool)}
 }
 
+func ParseUserRole(role string) db.UserRole {
+	switch role {
+	case string(db.UserRoleAdmin):
+		return db.UserRoleAdmin
+	case string(db.UserRoleUser):
+		return db.UserRoleUser
+	default:
+		return db.UserRoleUser
+	}
+}
+
 func (ur *UserRepository) Create(ctx context.Context, user domain.User) error {
 	err := ur.db.CreateUser(ctx, db.CreateUserParams{
-		Email: user.Email,
+		Email:        user.Email,
 		PasswordHash: user.PasswordHash,
-		FirstName: user.FirstName,
-		LastName: user.LastName,
+		FirstName:    user.FirstName,
+		LastName:     user.LastName,
+		Role:        	ParseUserRole(user.Role),
 	})
 
 	return MapError(err)
