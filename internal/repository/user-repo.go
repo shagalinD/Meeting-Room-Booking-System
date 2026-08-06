@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shdmitri/booking-service/internal/db"
 	"github.com/shdmitri/booking-service/internal/domain"
@@ -24,13 +25,43 @@ func (ur *UserRepository) Create(ctx context.Context, user domain.User) error {
 		LastName: user.LastName,
 	})
 
-	return err
+	return MapError(err)
 }
 
 func (ur *UserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	userRow, err := ur.db.GetUserByEmail(ctx, email)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
+	}
+
+	return &domain.User{
+		ID:             userRow.ID.String(),
+		Email:          userRow.Email,
+		PasswordHash: userRow.PasswordHash,
+		FirstName:      userRow.FirstName,
+		LastName:       userRow.LastName,
+	}, nil
+}
+
+func ParseUUID(id string) (pgtype.UUID, error) {
+    var pgUUID pgtype.UUID
+    if err := pgUUID.Scan(id); err != nil {
+        return pgtype.UUID{}, err
+    }
+
+    return pgUUID, nil
+}
+
+func (ur *UserRepository) GetByID(ctx context.Context, id string) (*domain.User, error) {
+	pgUUID, err := ParseUUID(id)
+
+	if err != nil {
+		return nil, MapError(err)
+	}
+	
+	userRow, err := ur.db.GetUserByID(ctx, pgUUID)
+	if err != nil {
+		return nil, MapError(err)
 	}
 
 	return &domain.User{

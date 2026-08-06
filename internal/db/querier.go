@@ -11,9 +11,24 @@ import (
 )
 
 type Querier interface {
+	// CREATE TABLE rooms (
+	//   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	//   name TEXT UNIQUE NOT NULL,
+	//   capacity INTEGER NOT NULL,
+	//   floor INTEGER NOT NULL,
+	//   has_projector BOOLEAN NOT NULL,
+	//   has_sound BOOLEAN NOT NULL,
+	//   is_active BOOLEAN NOT NULL,
+	//   created_at TIMESTAMPTZ DEFAULT NOW(),
+	//   updated_at TIMESTAMPTZ
+	// );
+	CreateRoom(ctx context.Context, arg CreateRoomParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) error
+	GetRoomByID(ctx context.Context, id pgtype.UUID) (Room, error)
 	GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (GetUserByIDRow, error)
+	ListRooms(ctx context.Context, arg ListRoomsParams) ([]Room, error)
+	UpdateRoom(ctx context.Context, arg UpdateRoomParams) error
 }
 
 var _ Querier = (*Queries)(nil)

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/shdmitri/booking-service/internal/config"
 )
 
 type PostgresConfig struct {
@@ -23,7 +22,7 @@ type PostgresConfig struct {
 	ConnMaxIdleTime time.Duration `mapstructure:"conn_max_idle_time"`
 }
 
-func ConnectDB(cfg *config.PostgresConfig, dsn string) (*pgxpool.Pool, error) {
+func ConnectDB(cfg *PostgresConfig, dsn string) (*pgxpool.Pool, error) {
 	poolConfig, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("error on parsing postgres config: %w", err)
