@@ -8,12 +8,12 @@ import (
 	"strings"
 
 	"github.com/shdmitri/booking-service/internal/api/dto"
-	"github.com/shdmitri/booking-service/internal/service"
+	"github.com/shdmitri/booking-service/internal/domain"
 	apperrors "github.com/shdmitri/booking-service/pkg/errors"
 )
 
 type AuthHandler struct {
-	S *service.AuthService
+	S domain.AuthService
 	Logger *slog.Logger
 }
 
@@ -70,7 +70,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// obtain tokens by logging in immediately
-	accessToken, refreshToken, err := h.S.Register(r.Context(), user.Email, user.Password, user.Firstname, user.Lastname, "user")
+	accessToken, refreshToken, err := h.S.Register(r.Context(), user.Email, user.Password, user.FirstName, user.LastName, "user")
 	if err != nil {
 		writeErrorResponse(w, h.Logger, err)
 		return
