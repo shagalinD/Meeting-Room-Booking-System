@@ -10,7 +10,7 @@ import (
 )
 
 type UserRepository struct {
-	db *db.Queries
+	DB *db.Queries
 }
 
 func NewUserRepository(pool *pgxpool.Pool) *UserRepository {
@@ -28,8 +28,8 @@ func ParseUserRole(role string) db.UserRole {
 	}
 }
 
-func (ur *UserRepository) Create(ctx context.Context, user domain.User) error {
-	err := ur.db.CreateUser(ctx, db.CreateUserParams{
+func (ur *UserRepository) Create(ctx context.Context, user *domain.UserCommand) (string, error) {
+	id, err := ur.DB.CreateUser(ctx, db.CreateUserParams{
 		Email:        user.Email,
 		PasswordHash: user.PasswordHash,
 		FirstName:    user.FirstName,
@@ -37,11 +37,11 @@ func (ur *UserRepository) Create(ctx context.Context, user domain.User) error {
 		Role:        	ParseUserRole(user.Role),
 	})
 
-	return MapError(err)
+	return id.String(), MapError(err)
 }
 
 func (ur *UserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
-	userRow, err := ur.db.GetUserByEmail(ctx, email)
+	userRow, err := ur.DB.GetUserByEmail(ctx, email)
 	if err != nil {
 		return nil, MapError(err)
 	}
@@ -71,7 +71,7 @@ func (ur *UserRepository) GetByID(ctx context.Context, id string) (*domain.User,
 		return nil, MapError(err)
 	}
 	
-	userRow, err := ur.db.GetUserByID(ctx, pgUUID)
+	userRow, err := ur.DB.GetUserByID(ctx, pgUUID)
 	if err != nil {
 		return nil, MapError(err)
 	}

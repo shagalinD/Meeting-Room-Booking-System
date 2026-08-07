@@ -5,6 +5,7 @@ const (
 	NotFoundError
 	UnauthorizedError
 	InvalidCredentialsError
+	ValidationError
 )
 
 type Errors struct {

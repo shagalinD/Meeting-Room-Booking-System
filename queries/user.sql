@@ -9,9 +9,10 @@
 --   updated_at TIMESTAMPTZ
 -- );
 
--- name: CreateUser :exec
+-- name: CreateUser :one
 INSERT INTO users (email, password_hash, first_name, last_name, role) 
-VALUES ($1, $2, $3, $4, $5);
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id;
 
 -- name: GetUserByEmail :one
 SELECT id, email, password_hash, first_name, last_name, role

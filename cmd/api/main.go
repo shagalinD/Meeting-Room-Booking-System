@@ -4,33 +4,46 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/shdmitri/booking-service/internal/api"
 	"github.com/shdmitri/booking-service/internal/config"
+	"github.com/shdmitri/booking-service/internal/repository"
+	"github.com/shdmitri/booking-service/internal/service"
 	"github.com/shdmitri/booking-service/pkg/logger"
 )
 
-func assignUsers(mx *http.ServeMux) {
-	// mx.Handle("/users/", http.StripPrefix("/users", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request	) {
+func configHandlers(dbpool *pgxpool.Pool, logger *slog.Logger) api.Handlers {
+	userRepo := repository.NewUserRepository(dbpool)
+	authService := &service.AuthService{
+		Repo:      userRepo,
+		JWTSecret: []byte(config.AppConfig.Server.JWTSecret),
+	}
+	authHandler := &api.AuthHandler{
+		S:      authService,
+		Logger: logger,
+	}
 
-	// })))
+	return api.Handlers{
+		AuthHandler: authHandler,
+	}
 }
 
-func assignAuth(mx *http.ServeMux) {
-	mx.Handle("/users/", http.StripPrefix("/users", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-	})))
+func assignAuth(mx *http.ServeMux, h *api.AuthHandler) {
+	mx.Handle("/auth/", http.StripPrefix("/register", http.HandlerFunc(h.Register)))
+	mx.Handle("/auth/", http.StripPrefix("/login", http.HandlerFunc(h.Login)))
 }
 
-func assignHandlers(mx *http.ServeMux) {
+func assignHandlers(mx *http.ServeMux, h *api.AuthHandler) {
 	mx.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Server is up and running"))
 	})
-	assignUsers(mx)
-	assignAuth(mx)
+	assignAuth(mx, h)
 }
 
 func main() {
@@ -53,7 +66,7 @@ func main() {
 		config.AppConfig.Postgres.Password,
 	)
 
-	_, err := config.ConnectDB(&config.AppConfig.Postgres, dsn)
+	dbpool, err := config.ConnectDB(&config.AppConfig.Postgres, dsn)
 
 	if err != nil {
 		panic(err)
@@ -73,7 +86,8 @@ func main() {
 	logger.Info("Starting server on port " + config.AppConfig.Server.Port)
 
 	mx := http.NewServeMux()
-	assignHandlers(mx)
+	handlers := configHandlers(dbpool, logger)
+	assignHandlers(mx, handlers.AuthHandler)
 
 	srv := &http.Server{
 		Addr:              ":" + config.AppConfig.Server.Port,

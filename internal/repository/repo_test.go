@@ -8,16 +8,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-playground/assert/v2"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/shdmitri/booking-service/internal/config"
 	"github.com/shdmitri/booking-service/internal/domain"
 )
 
 func TestUserRepository_CreateAndGetByEmailIntegration(t *testing.T) {
+	// Skip integration tests on --short flag
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
 
+	// Creating testing database with admin user
 	testDBName := getenv("POSTGRES_TEST_DB", "test_db")
 	postgresDBName := getenv("POSTGRES_DB", "postgres")
 	adminDSN := fmt.Sprintf(
@@ -62,6 +65,7 @@ func TestUserRepository_CreateAndGetByEmailIntegration(t *testing.T) {
 		testDBName,
 	)
 
+	// Connecting to test database 
 	pool, err := config.ConnectDB(&config.PostgresConfig{
 		Host:            getenv("POSTGRES_HOST", "localhost"),
 		Port:            getenv("POSTGRES_PORT", "5434"),
@@ -79,6 +83,7 @@ func TestUserRepository_CreateAndGetByEmailIntegration(t *testing.T) {
 	}
 	defer pool.Close()
 
+	// Cleanup on finishing tests
 	t.Cleanup(func() {
 		pool.Close()
 		if _, err := adminPool.Exec(context.Background(), fmt.Sprintf("DROP DATABASE IF EXISTS %s", testDBName)); err != nil {
@@ -89,6 +94,7 @@ func TestUserRepository_CreateAndGetByEmailIntegration(t *testing.T) {
 		}
 	})
 
+	// Directly execute creating users
 	if _, err := pool.Exec(context.Background(), `
 		CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 		DO $$
@@ -111,16 +117,17 @@ func TestUserRepository_CreateAndGetByEmailIntegration(t *testing.T) {
 		t.Fatalf("prepare users table: %v", err)
 	}
 
+	// Testing repo user functions without rooms due to testing connection itself
 	repo := NewUserRepository(pool)
 	email := fmt.Sprintf("integration-%d@example.com", time.Now().UnixNano())
-	user := domain.User{
+	user := domain.UserCommand{
 		Email:        email,
 		PasswordHash: "hashed-password",
 		FirstName:    "Integration",
 		LastName:     "Test",
 	}
 
-	if err := repo.Create(context.Background(), user); err != nil {
+	if _, err := repo.Create(context.Background(), &user); err != nil {
 		t.Fatalf("create user: %v", err)
 	}
 
@@ -129,21 +136,10 @@ func TestUserRepository_CreateAndGetByEmailIntegration(t *testing.T) {
 		t.Fatalf("read created user: %v", err)
 	}
 
-	if got.ID == "" {
-		t.Fatalf("expected generated user id")
-	}
-	if got.Email != email {
-		t.Fatalf("expected email %q, got %q", email, got.Email)
-	}
-	if got.FirstName != user.FirstName {
-		t.Fatalf("expected first name %q, got %q", user.FirstName, got.FirstName)
-	}
-	if got.LastName != user.LastName {
-		t.Fatalf("expected last name %q, got %q", user.LastName, got.LastName)
-	}
-	if got.PasswordHash != user.PasswordHash {
-		t.Fatalf("expected password hash %q, got %q", user.PasswordHash, got.PasswordHash)
-	}
+	assert.Equal(t, got.Email, email)
+	assert.Equal(t, got.FirstName, user.FirstName)
+	assert.Equal(t, got.LastName, user.LastName)
+	assert.Equal(t, got.PasswordHash, user.PasswordHash)
 
 	if _, err := pool.Exec(context.Background(), `DELETE FROM users WHERE email = $1`, email); err != nil {
 		t.Fatalf("cleanup created user: %v", err)

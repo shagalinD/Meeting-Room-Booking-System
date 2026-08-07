@@ -16,6 +16,7 @@ enter-db:
 	docker compose exec database psql -U postgres -d postgres
 
 test:
+	go test ./...
 
 run:
 	docker compose up

@@ -23,7 +23,17 @@ type Querier interface {
 	//   updated_at TIMESTAMPTZ
 	// );
 	CreateRoom(ctx context.Context, arg CreateRoomParams) error
-	CreateUser(ctx context.Context, arg CreateUserParams) error
+	// CREATE TABLE users (
+	//   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	//   email TEXT UNIQUE NOT NULL,
+	//   password_hash TEXT NOT NULL,
+	//   first_name TEXT NOT NULL,
+	//   last_name TEXT NOT NULL,
+	//   role user_role NOT NULL,
+	//   created_at TIMESTAMPTZ DEFAULT NOW(),
+	//   updated_at TIMESTAMPTZ
+	// );
+	CreateUser(ctx context.Context, arg CreateUserParams) (pgtype.UUID, error)
 	GetRoomByID(ctx context.Context, id pgtype.UUID) (Room, error)
 	GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (GetUserByIDRow, error)
