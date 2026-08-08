@@ -22,7 +22,8 @@ func configHandlers(dbpool *pgxpool.Pool, logger *slog.Logger) api.Handlers {
 	userRepo := repository.NewUserRepository(dbpool)
 	authService := &service.AuthService{
 		Repo:      userRepo,
-		JWTSecret: []byte(config.AppConfig.Server.JWTSecret),
+		JWTAccessSecret: []byte(config.AppConfig.Server.JWTAccessSecret),
+		JWTRefreshSecret: []byte(config.AppConfig.Server.JWTRefreshSecret),
 	}
 	authHandler := &api.AuthHandler{
 		S:      authService,

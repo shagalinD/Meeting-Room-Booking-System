@@ -23,7 +23,8 @@ redis:
 
 server:
   log_level: 'debug'
-  jwt_secret: 'my_jwt_secret'
+  jwt_access_secret: 'my_jwt_access_secret'
+  jwt_refresh_secret: 'my_jwt_refresh_secret'
   port: '8081'
   read_timeout: '5s'
   read_header_timeout: '2s'

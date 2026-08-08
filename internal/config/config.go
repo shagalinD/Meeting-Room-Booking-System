@@ -69,7 +69,8 @@ func bindEnvs(v *viper.Viper) {
 	v.BindEnv("redis.write_timeout", "REDIS_WRITE_TIMEOUT")
 
 	v.BindEnv("server.log_level", "LOG_LEVEL")
-	v.BindEnv("server.jwt_secret", "JWT_SECRET")
+	v.BindEnv("server.jwt_access_secret", "JWT_ACCESS_SECRET")
+	v.BindEnv("server.jwt_refresh_secret", "JWT_REFRESH_SECRET")
 	v.BindEnv("server.port", "SERVER_PORT")
 	v.BindEnv("server.read_timeout", "SERVER_READ_TIMEOUT")
 	v.BindEnv("server.read_header_timeout", "SERVER_READ_HEADER_TIMEOUT")
@@ -101,7 +102,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("redis.write_timeout", "3s")
 
 	v.SetDefault("server.log_level", "debug")
-	v.SetDefault("server.jwt_secret", "my_jwt_secret")
+	v.SetDefault("server.jwt_access_secret", "my_jwt_access_secret")
+	v.SetDefault("server.jwt_refresh_secret", "my_jwt_refresh_secret")
 	v.SetDefault("server.port", "8081")
 	v.SetDefault("server.read_timeout", "5s")
 	v.SetDefault("server.read_header_timeout", "2s")

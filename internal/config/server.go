@@ -3,7 +3,8 @@ package config
 import "time"
 
 type ServerConfig struct {
-	JWTSecret         string        `mapstructure:"jwt_secret"`
+	JWTAccessSecret   string        `mapstructure:"jwt_access_secret"`
+	JWTRefreshSecret  string        `mapstructure:"jwt_refresh_secret"`
 	LogLevel          string        `mapstructure:"log_level"`
 	Port              string        `mapstructure:"port"`
 	ReadTimeout       time.Duration `mapstructure:"read_timeout"`

@@ -15,7 +15,8 @@ var emailPattern = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
 
 type AuthService struct {
 	Repo domain.UserRepository
-	JWTSecret []byte
+	JWTAccessSecret []byte
+	JWTRefreshSecret []byte
 }
 
 func (s *AuthService) Register(ctx context.Context, email, password, firstName, lastName, role string) (string, string, error) {
@@ -52,7 +53,7 @@ func (s *AuthService) Register(ctx context.Context, email, password, firstName, 
 		}
 	}
 
-	return GetTokens(userId, role, s.JWTSecret)
+	return GetTokens(userId, role, s.JWTAccessSecret, s.JWTRefreshSecret)
 }
 
 
@@ -84,11 +85,11 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 		}
 	}
 
-	return GetTokens(user.ID, user.Role, s.JWTSecret)
+	return GetTokens(user.ID, user.Role, s.JWTAccessSecret, s.JWTRefreshSecret)
 }
 
-func GetTokens(userId string, role string, secret []byte) (string, string, error) {
-	accessToken, err := security.CreateAccessToken(userId, role, secret)
+func GetTokens(userId string, role string, accessSecret []byte, refreshSecret []byte) (string, string, error) {
+	accessToken, err := security.CreateAccessToken(userId, role, accessSecret)
 	if err != nil {
 		return "", "", &apperrors.Errors{
 			Err: err, 
@@ -97,7 +98,7 @@ func GetTokens(userId string, role string, secret []byte) (string, string, error
 		}
 	}
 
-	refreshToken, err := security.CreateRefreshToken(userId, role, secret)
+	refreshToken, err := security.CreateRefreshToken(userId, role, refreshSecret)
 	if err != nil {
 		return "", "", &apperrors.Errors{
 			Err: err, 
