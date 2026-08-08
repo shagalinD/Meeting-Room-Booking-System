@@ -106,3 +106,24 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		RefreshToken: refreshToken,
 	})
 }
+
+func (h *AuthHandler) RefreshTokens(w http.ResponseWriter, r *http.Request) {
+	var req dto.RefreshRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return 
+	}
+
+	accessToken, refreshToken, err := h.S.RefreshTokens(r.Context(), req.RefreshToken)
+
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return 
+	}
+
+	_ = json.NewEncoder(w).Encode(dto.RefreshResponse{
+		AccessToken: accessToken,
+		RefreshToken: refreshToken,
+	})
+}

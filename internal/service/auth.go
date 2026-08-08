@@ -56,7 +56,6 @@ func (s *AuthService) Register(ctx context.Context, email, password, firstName, 
 	return GetTokens(userId, role, s.JWTAccessSecret, s.JWTRefreshSecret)
 }
 
-
 func (s *AuthService) Login(ctx context.Context, email, password string) (string, string, error) {
 	user, err := s.Repo.GetByEmail(ctx, email)
 	if err != nil {
@@ -86,6 +85,29 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 	}
 
 	return GetTokens(user.ID, user.Role, s.JWTAccessSecret, s.JWTRefreshSecret)
+}
+
+func (s *AuthService) RefreshTokens(ctx context.Context, refreshToken string) (string, string, error) {
+	parsedToken, err := security.ParseToken(refreshToken, s.JWTRefreshSecret)
+
+	if err != nil {
+		return "", "", &apperrors.Errors{
+			Err: err,
+			Code: apperrors.UnauthorizedError,
+			Message: "invalid or expired token",
+		}
+	}
+
+	accessToken, newRefreshToken, err := GetTokens(parsedToken.UserID, parsedToken.Role, s.JWTAccessSecret, s.JWTRefreshSecret)
+	if err != nil {
+		return "", "", &apperrors.Errors{
+			Err: err,
+			Code: apperrors.InternalServerError,
+			Message: "error on generating new tokens",
+		}
+	}
+
+	return accessToken, newRefreshToken, nil
 }
 
 func GetTokens(userId string, role string, accessSecret []byte, refreshSecret []byte) (string, string, error) {
