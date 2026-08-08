@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/shdmitri/booking-service/internal/domain"
-	"github.com/shdmitri/booking-service/internal/service/security"
 	apperrors "github.com/shdmitri/booking-service/pkg/errors"
+	"github.com/shdmitri/booking-service/pkg/security"
 )
 
 var emailPattern = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
