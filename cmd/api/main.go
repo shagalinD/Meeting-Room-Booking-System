@@ -34,16 +34,13 @@ func configHandlers(dbpool *pgxpool.Pool, logger *slog.Logger) api.Handlers {
 	}
 }
 
-func assignAuth(mx *http.ServeMux, h *api.AuthHandler) {
-	mx.Handle("/auth/", http.StripPrefix("/register", http.HandlerFunc(h.Register)))
-	mx.Handle("/auth/", http.StripPrefix("/login", http.HandlerFunc(h.Login)))
-}
 
 func assignHandlers(mx *http.ServeMux, h *api.AuthHandler) {
 	mx.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Server is up and running"))
 	})
-	assignAuth(mx, h)
+	mx.HandleFunc("POST /auth/register", h.Register)
+	mx.HandleFunc("POST /auth/login", h.Login)
 }
 
 func main() {
@@ -90,7 +87,7 @@ func main() {
 	assignHandlers(mx, handlers.AuthHandler)
 
 	srv := &http.Server{
-		Addr:              ":" + config.AppConfig.Server.Port,
+		Addr:              config.AppConfig.Server.Port,
 		Handler:           mx,
 		ReadTimeout:       config.AppConfig.Server.ReadTimeout,
 		ReadHeaderTimeout: config.AppConfig.Server.ReadHeaderTimeout,
@@ -104,7 +101,7 @@ func main() {
 		} else {
 		}
 	}()
-	logger.Info("Server successfully started: http://localhost:" + config.AppConfig.Server.Port + "/health")
+	logger.Info("Server successfully started: http://localhost" + config.AppConfig.Server.Port + "/health")
 
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)

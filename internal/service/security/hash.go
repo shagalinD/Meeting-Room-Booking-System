@@ -47,7 +47,7 @@ func HashPassword(password string) (string, error) {
 	 	config.Iterations, 
 		config.Memory, 
 		config.Parallelism, 
-		config.SaltLength,
+		config.KeyLength,
 	)
 
 	encodedSalt := base64.RawStdEncoding.EncodeToString(salt)
@@ -59,7 +59,7 @@ func HashPassword(password string) (string, error) {
 }
 
 func VerifyPassword(password, encodedHash string) (bool, error) {
-	config, hash, salt, err := decodeHash(encodedHash)
+	config, salt, hash, err := decodeHash(encodedHash)
 
 	if err != nil {
 		return false, err 
@@ -74,6 +74,8 @@ func VerifyPassword(password, encodedHash string) (bool, error) {
 		config.KeyLength,
 	)
 
+	fmt.Println("Password Hash:", base64.RawStdEncoding.EncodeToString(passwordHash))
+	fmt.Println("Stored Hash:", base64.RawStdEncoding.EncodeToString(hash))
 	if subtle.ConstantTimeCompare(passwordHash, hash) == 1 {
 		return true, nil 
 	}
@@ -121,8 +123,10 @@ func decodeHash(hash string) (Argon2idConfig, []byte, []byte, error) {
         Iterations:  iterations,
         Parallelism: parallelism,
         SaltLength:  uint32(len(salt)),
-        KeyLength:   uint32(len(hash)),
+        KeyLength:   uint32(len(resultHash)),
     }
+		fmt.Print("Decoded params:", params)
+		fmt.Print("Default params:", defaultArgon2idConfig)
     
     return params, salt, resultHash, nil
 }

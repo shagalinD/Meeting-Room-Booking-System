@@ -47,6 +47,7 @@ func writeErrorResponse(w http.ResponseWriter, logger *slog.Logger, err error) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)
 		_ = json.NewEncoder(w).Encode(errorResponse{Error: aerr.Message})
+		logger.Debug("Error response sent", "Status", status, "Message", aerr.Message, "Error", aerr.Err)
 		return
 	}
 
