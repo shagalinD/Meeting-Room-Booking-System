@@ -74,8 +74,6 @@ func VerifyPassword(password, encodedHash string) (bool, error) {
 		config.KeyLength,
 	)
 
-	fmt.Println("Password Hash:", base64.RawStdEncoding.EncodeToString(passwordHash))
-	fmt.Println("Stored Hash:", base64.RawStdEncoding.EncodeToString(hash))
 	if subtle.ConstantTimeCompare(passwordHash, hash) == 1 {
 		return true, nil 
 	}
@@ -125,8 +123,6 @@ func decodeHash(hash string) (Argon2idConfig, []byte, []byte, error) {
         SaltLength:  uint32(len(salt)),
         KeyLength:   uint32(len(resultHash)),
     }
-		fmt.Print("Decoded params:", params)
-		fmt.Print("Default params:", defaultArgon2idConfig)
     
     return params, salt, resultHash, nil
 }
