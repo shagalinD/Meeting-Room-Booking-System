@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shdmitri/booking-service/internal/api"
+	"github.com/shdmitri/booking-service/internal/api/middleware"
 	"github.com/shdmitri/booking-service/internal/config"
 	"github.com/shdmitri/booking-service/internal/repository"
 	"github.com/shdmitri/booking-service/internal/service"
@@ -30,18 +31,45 @@ func configHandlers(dbpool *pgxpool.Pool, logger *slog.Logger) api.Handlers {
 		Logger: logger,
 	}
 
+	roomRepo := repository.NewRoomsRepository(dbpool)
+	roomService := &service.RoomService{
+		Repo: roomRepo,
+	}
+	roomHandler := &api.RoomHandler{
+		Service:      roomService,
+		Logger: logger,
+	}
+
 	return api.Handlers{
 		AuthHandler: authHandler,
+		RoomHandler: roomHandler,
+	}
+}
+
+func configMiddleware(logger *slog.Logger) *middleware.Middlewares {
+	authMiddleware := &middleware.AuthMiddleware{
+		Logger: logger,
+		JWTAccessSecret: []byte(config.AppConfig.Server.JWTAccessSecret),
+		JWTRefreshSecret: []byte(config.AppConfig.Server.JWTAccessSecret),
+	}
+
+	return &middleware.Middlewares{
+		AuthMiddleware: authMiddleware,
 	}
 }
 
 
-func assignHandlers(mx *http.ServeMux, h *api.AuthHandler) {
+func assignHandlers(mx *http.ServeMux, h api.Handlers, middleware *middleware.Middlewares) {
 	mx.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Server is up and running"))
 	})
-	mx.HandleFunc("POST /auth/register", h.Register)
-	mx.HandleFunc("POST /auth/login", h.Login)
+	mx.HandleFunc("POST /auth/register", h.AuthHandler.Register)
+	mx.HandleFunc("POST /auth/login", h.AuthHandler.Login)
+
+	mx.Handle("POST /rooms/create", middleware.AuthMiddleware.Auth(
+		http.HandlerFunc(h.RoomHandler.CreateRoom),
+		))
+	mx.HandleFunc("GET /rooms/list", h.RoomHandler.ListRooms)
 }
 
 func main() {
@@ -85,7 +113,8 @@ func main() {
 
 	mx := http.NewServeMux()
 	handlers := configHandlers(dbpool, logger)
-	assignHandlers(mx, handlers.AuthHandler)
+	middlewares := configMiddleware(logger)
+	assignHandlers(mx, handlers, middlewares)
 
 	srv := &http.Server{
 		Addr:              config.AppConfig.Server.Port,

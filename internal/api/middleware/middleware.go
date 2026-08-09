@@ -1,17 +1,21 @@
-package api
+package middleware
 
 import (
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	apperrors "github.com/shdmitri/booking-service/pkg/errors"
 )
 
-type Handlers struct {
-	AuthHandler *AuthHandler
-	RoomHandler *RoomHandler
+type Middlewares struct {
+	AuthMiddleware *AuthMiddleware
+}
+
+type errorResponse struct {
+	Error string `json:"error"`
 }
 
 func writeErrorResponse(w http.ResponseWriter, logger *slog.Logger, err error) {
@@ -27,7 +31,7 @@ func writeErrorResponse(w http.ResponseWriter, logger *slog.Logger, err error) {
 			status = http.StatusNotFound
 		case apperrors.InternalServerError:
 			// detect conflict-like message produced by repository mapping
-			if aerr.Message != "" && (containsIgnoreCase(aerr.Message, "conflict") || containsIgnoreCase(aerr.Message, "already")) {
+			if aerr.Message != "" && (strings.Contains(aerr.Message, "conflict") || strings.Contains(aerr.Message, "already")) {
 				status = http.StatusConflict
 			} else {
 				status = http.StatusInternalServerError
@@ -49,3 +53,4 @@ func writeErrorResponse(w http.ResponseWriter, logger *slog.Logger, err error) {
 	w.WriteHeader(http.StatusInternalServerError)
 	_ = json.NewEncoder(w).Encode(errorResponse{Error: "internal server error"})
 }
+

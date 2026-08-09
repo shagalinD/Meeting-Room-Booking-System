@@ -94,3 +94,4 @@ func ParseToken(tokenString string, secret []byte) (*CustomClaims, error) {
     
     return claims, nil
 }
+

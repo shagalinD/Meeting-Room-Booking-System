@@ -52,6 +52,7 @@ func (ur *UserRepository) GetByEmail(ctx context.Context, email string) (*domain
 		PasswordHash: userRow.PasswordHash,
 		FirstName:      userRow.FirstName,
 		LastName:       userRow.LastName,
+		Role:           string(userRow.Role),
 	}, nil
 }
 
@@ -82,5 +83,6 @@ func (ur *UserRepository) GetByID(ctx context.Context, id string) (*domain.User,
 		PasswordHash: userRow.PasswordHash,
 		FirstName:      userRow.FirstName,
 		LastName:       userRow.LastName,
+		Role:           string(userRow.Role),
 	}, nil
 }

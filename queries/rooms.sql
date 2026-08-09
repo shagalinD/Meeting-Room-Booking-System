@@ -10,9 +10,10 @@
 --   updated_at TIMESTAMPTZ
 -- );
 
--- name: CreateRoom :exec
+-- name: CreateRoom :one
 INSERT INTO rooms (name, capacity, floor, has_projector, has_sound, is_active)
-VALUES ($1, $2, $3, $4, $5, $6);
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id;
 
 -- name: GetRoomByID :one
 SELECT id, name, capacity, floor, has_projector, has_sound, is_active, created_at, updated_at

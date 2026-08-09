@@ -2,10 +2,11 @@ package middleware
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strings"
 
-	"github.com/shdmitri/booking-service/internal/domain"
+	apperrors "github.com/shdmitri/booking-service/pkg/errors"
 	"github.com/shdmitri/booking-service/pkg/security"
 )
 
@@ -16,29 +17,29 @@ const (
 	roleContextKey   contextKey = "role"
 )
 
-type Middleware struct {
-	service domain.AuthService
+type AuthMiddleware struct {
+	Logger *slog.Logger
 	JWTAccessSecret  []byte
 	JWTRefreshSecret []byte
 }
 
-func (m *Middleware) AuthMiddleware(next http.Handler) http.Handler {
+func (m *AuthMiddleware) Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
 		if authHeader == "" {
-			http.Error(w, "missing authorization header", http.StatusUnauthorized)
+			writeErrorResponse(w, m.Logger, &apperrors.Errors{Code: apperrors.UnauthorizedError, Message: "missing authorization header"})
 			return
 		}
 
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || strings.TrimSpace(parts[1]) == "" {
-			http.Error(w, "invalid authorization header", http.StatusUnauthorized)
+			writeErrorResponse(w, m.Logger, &apperrors.Errors{Code: apperrors.UnauthorizedError, Message: "invalid authorization header format"})
 			return
 		}
 
 		claims, err := security.ParseToken(parts[1], m.JWTAccessSecret)
 		if err != nil {
-			http.Error(w, "invalid or expired token", http.StatusUnauthorized)
+			writeErrorResponse(w, m.Logger, &apperrors.Errors{Code: apperrors.UnauthorizedError, Message: "invalid or expired token"})
 			return
 		}
 

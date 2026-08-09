@@ -11,10 +11,11 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createRoom = `-- name: CreateRoom :exec
+const createRoom = `-- name: CreateRoom :one
 
 INSERT INTO rooms (name, capacity, floor, has_projector, has_sound, is_active)
 VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id
 `
 
 type CreateRoomParams struct {
@@ -39,8 +40,8 @@ type CreateRoomParams struct {
 //	updated_at TIMESTAMPTZ
 //
 // );
-func (q *Queries) CreateRoom(ctx context.Context, arg CreateRoomParams) error {
-	_, err := q.db.Exec(ctx, createRoom,
+func (q *Queries) CreateRoom(ctx context.Context, arg CreateRoomParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, createRoom,
 		arg.Name,
 		arg.Capacity,
 		arg.Floor,
@@ -48,7 +49,9 @@ func (q *Queries) CreateRoom(ctx context.Context, arg CreateRoomParams) error {
 		arg.HasSound,
 		arg.IsActive,
 	)
-	return err
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const getRoomByID = `-- name: GetRoomByID :one

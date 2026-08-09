@@ -22,7 +22,7 @@ type Querier interface {
 	//   created_at TIMESTAMPTZ DEFAULT NOW(),
 	//   updated_at TIMESTAMPTZ
 	// );
-	CreateRoom(ctx context.Context, arg CreateRoomParams) error
+	CreateRoom(ctx context.Context, arg CreateRoomParams) (pgtype.UUID, error)
 	// CREATE TABLE users (
 	//   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	//   email TEXT UNIQUE NOT NULL,

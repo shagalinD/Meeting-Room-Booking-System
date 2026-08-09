@@ -21,8 +21,8 @@ func NewRoomsRepository(pool *pgxpool.Pool) *RoomsRepository {
 	}
 }
 
-func (rr *RoomsRepository) Create(room *domain.Room) error {
-	err := rr.db.CreateRoom(context.Background(), db.CreateRoomParams{
+func (rr *RoomsRepository) Create(room *domain.Room) (string, error) {
+	id, err := rr.db.CreateRoom(context.Background(), db.CreateRoomParams{
 		Name:         room.Name,
 		Capacity:     int32(room.Capacity),
 		Floor:        0,
@@ -30,7 +30,7 @@ func (rr *RoomsRepository) Create(room *domain.Room) error {
 		HasSound:     false,
 		IsActive:     true,
 	})
-	return MapError(err)
+	return id.String(), MapError(err)
 }
 
 func (rr *RoomsRepository) GetByID(id string) (*domain.Room, error) {
