@@ -76,6 +76,7 @@ func bindEnvs(v *viper.Viper) {
 	v.BindEnv("redis.dial_timeout", "REDIS_DIAL_TIMEOUT")
 	v.BindEnv("redis.read_timeout", "REDIS_READ_TIMEOUT")
 	v.BindEnv("redis.write_timeout", "REDIS_WRITE_TIMEOUT")
+	v.BindEnv("redis.time_to_live", "REDIS_TIME_TO_LIVE")
 
 	v.BindEnv("server.log_level", "LOG_LEVEL")
 	v.BindEnv("server.jwt_access_secret", "JWT_ACCESS_SECRET")
@@ -109,6 +110,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("redis.dial_timeout", "5s")
 	v.SetDefault("redis.read_timeout", "3s")
 	v.SetDefault("redis.write_timeout", "3s")
+	v.SetDefault("redis.time_to_live", "5m")
 
 	v.SetDefault("server.log_level", "debug")
 	v.SetDefault("server.jwt_access_secret", "my_jwt_access_secret")

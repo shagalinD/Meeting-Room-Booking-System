@@ -56,15 +56,25 @@ func (h *RoomHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *RoomHandler) ListRooms(w http.ResponseWriter, r *http.Request) {
-	maxCapacity, err := strconv.Atoi(r.URL.Query().Get("max_capacity"))
+	query := r.URL.Query().Get("max_capacity")
+	if query == "" {
+		query = "10000"
+	}
+
+	maxCapacity, err := strconv.Atoi(query)
 	if err != nil {
-		writeErrorResponse(w, h.Logger, &apperrors.Errors{Code: apperrors.UnauthorizedError, Message: "max capacity not provided or in invalid format"})
+		writeErrorResponse(w, h.Logger, &apperrors.Errors{Code: apperrors.UnauthorizedError, Message: "max capacity is in invalid format"})
 		return
 	}
 	
-	minCapacity, err := strconv.Atoi(r.URL.Query().Get("min_capacity"))
+	query = r.URL.Query().Get("min_capacity")
+	if query == "" {
+		query = "0"
+	}
+	
+	minCapacity, err := strconv.Atoi(query)
 	if err != nil {
-		writeErrorResponse(w, h.Logger, &apperrors.Errors{Code: apperrors.UnauthorizedError, Message: "min capacity not provided or in invalid format"})
+		writeErrorResponse(w, h.Logger, &apperrors.Errors{Code: apperrors.UnauthorizedError, Message: "min capacity is in invalid format"})
 		return
 	}
 

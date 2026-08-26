@@ -11,15 +11,17 @@ import (
 	"syscall"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"github.com/shdmitri/booking-service/internal/api"
 	"github.com/shdmitri/booking-service/internal/api/middleware"
 	"github.com/shdmitri/booking-service/internal/config"
-	"github.com/shdmitri/booking-service/internal/repository"
+	repository "github.com/shdmitri/booking-service/internal/repository/postgres"
+	cache "github.com/shdmitri/booking-service/internal/repository/redis"
 	"github.com/shdmitri/booking-service/internal/service"
 	"github.com/shdmitri/booking-service/pkg/logger"
 )
 
-func configHandlers(dbpool *pgxpool.Pool, logger *slog.Logger) api.Handlers {
+func configHandlers(dbpool *pgxpool.Pool, logger *slog.Logger, redisClient *redis.Client) api.Handlers {
 	userRepo := repository.NewUserRepository(dbpool)
 	authService := &service.AuthService{
 		Repo:      userRepo,
@@ -40,8 +42,9 @@ func configHandlers(dbpool *pgxpool.Pool, logger *slog.Logger) api.Handlers {
 		Logger: logger,
 	}
 	bookingRepo := repository.NewBookingRepository(dbpool)
+	bookingCacheRepo := cache.NewBookingCacheRepository(bookingRepo, redisClient, config.AppConfig.Redis.TimeToLive, logger)
 	bookingService := &service.BookingService{
-		Repo: bookingRepo,
+		Repo: bookingCacheRepo,
 	}
 	bookingHandler := &api.BookingHandler{
 		Service: bookingService,
@@ -118,7 +121,7 @@ func main() {
 	}
 
 	logger.Info("Connecting to Redis database...")
-	_, err = config.ConnectRedis(&config.AppConfig.Redis)
+	redisClient, err := config.ConnectRedis(&config.AppConfig.Redis)
 
 	if err != nil {
 		panic(err)
@@ -129,7 +132,7 @@ func main() {
 	logger.Info("Starting server on port " + config.AppConfig.Server.Port)
 
 	mx := http.NewServeMux()
-	handlers := configHandlers(dbpool, logger)
+	handlers := configHandlers(dbpool, logger, redisClient)
 	middlewares := configMiddleware(logger)
 	assignHandlers(mx, handlers, middlewares)
 
