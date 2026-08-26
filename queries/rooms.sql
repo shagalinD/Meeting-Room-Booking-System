@@ -31,3 +31,8 @@ FROM rooms
 WHERE capacity >= $1 AND capacity <= $2
 ORDER BY name
 OFFSET $3 LIMIT $4;
+
+-- name: SelectRoomForUpdate :one
+SELECT * FROM rooms
+WHERE id = $1
+FOR UPDATE;

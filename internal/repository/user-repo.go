@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shdmitri/booking-service/internal/db"
 	"github.com/shdmitri/booking-service/internal/domain"
@@ -56,14 +55,6 @@ func (ur *UserRepository) GetByEmail(ctx context.Context, email string) (*domain
 	}, nil
 }
 
-func ParseUUID(id string) (pgtype.UUID, error) {
-    var pgUUID pgtype.UUID
-    if err := pgUUID.Scan(id); err != nil {
-        return pgtype.UUID{}, err
-    }
-
-    return pgUUID, nil
-}
 
 func (ur *UserRepository) GetByID(ctx context.Context, id string) (*domain.User, error) {
 	pgUUID, err := ParseUUID(id)

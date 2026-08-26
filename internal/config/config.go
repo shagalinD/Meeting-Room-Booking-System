@@ -19,6 +19,15 @@ type Config struct {
 var AppConfig = &Config{}
 
 func LoadConfig() error {
+		wd, _ := os.Getwd()
+	fmt.Printf("Current working directory: %s\n", wd)
+
+	// Проверьте, существует ли .env файл
+	if _, err := os.Stat(".env"); err == nil {
+			fmt.Println(".env file found in current directory")
+	} else {
+			fmt.Printf(".env file not found in current directory: %v\n", err)
+	}
 	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("error on loading .env file: %w", err)
 	}

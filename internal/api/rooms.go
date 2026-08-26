@@ -61,6 +61,7 @@ func (h *RoomHandler) ListRooms(w http.ResponseWriter, r *http.Request) {
 		writeErrorResponse(w, h.Logger, &apperrors.Errors{Code: apperrors.UnauthorizedError, Message: "max capacity not provided or in invalid format"})
 		return
 	}
+	
 	minCapacity, err := strconv.Atoi(r.URL.Query().Get("min_capacity"))
 	if err != nil {
 		writeErrorResponse(w, h.Logger, &apperrors.Errors{Code: apperrors.UnauthorizedError, Message: "min capacity not provided or in invalid format"})

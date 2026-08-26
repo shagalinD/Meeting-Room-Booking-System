@@ -12,6 +12,9 @@ import (
 // 	Delete(id string) error
 // }
 
+var _ domain.RoomService = (*RoomService)(nil)
+
+
 type RoomService struct {
 	Repo domain.RoomRepository
 }

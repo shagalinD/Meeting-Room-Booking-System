@@ -10,6 +10,8 @@ import (
 	apperrors "github.com/shdmitri/booking-service/pkg/errors"
 	"github.com/shdmitri/booking-service/pkg/security"
 )
+var _ domain.AuthService = (*AuthService)(nil)
+
 
 var emailPattern = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
 

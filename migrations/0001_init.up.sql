@@ -46,5 +46,6 @@ CREATE TABLE bookings (
 );
 
 CREATE INDEX bookings_index ON bookings (room_id, start_time, end_time);
+CREATE INDEX booking_user_id_index ON bookings (user_id, start_time);
 
 

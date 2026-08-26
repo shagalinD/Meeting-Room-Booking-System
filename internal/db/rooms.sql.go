@@ -127,6 +127,29 @@ func (q *Queries) ListRooms(ctx context.Context, arg ListRoomsParams) ([]Room, e
 	return items, nil
 }
 
+const selectRoomForUpdate = `-- name: SelectRoomForUpdate :one
+SELECT id, name, capacity, floor, has_projector, has_sound, is_active, created_at, updated_at FROM rooms
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) SelectRoomForUpdate(ctx context.Context, id pgtype.UUID) (Room, error) {
+	row := q.db.QueryRow(ctx, selectRoomForUpdate, id)
+	var i Room
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Capacity,
+		&i.Floor,
+		&i.HasProjector,
+		&i.HasSound,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateRoom = `-- name: UpdateRoom :exec
 UPDATE rooms
 SET name = $1, capacity = $2, floor = $3, has_projector = $4, has_sound = $5, is_active = $6, updated_at = NOW()

@@ -39,10 +39,19 @@ func configHandlers(dbpool *pgxpool.Pool, logger *slog.Logger) api.Handlers {
 		Service:      roomService,
 		Logger: logger,
 	}
+	bookingRepo := repository.NewBookingRepository(dbpool)
+	bookingService := &service.BookingService{
+		Repo: bookingRepo,
+	}
+	bookingHandler := &api.BookingHandler{
+		Service: bookingService,
+		Logger: logger,
+	}
 
 	return api.Handlers{
 		AuthHandler: authHandler,
 		RoomHandler: roomHandler,
+		BookingHandler: bookingHandler,
 	}
 }
 
@@ -70,6 +79,13 @@ func assignHandlers(mx *http.ServeMux, h api.Handlers, middleware *middleware.Mi
 		http.HandlerFunc(h.RoomHandler.CreateRoom),
 		))
 	mx.HandleFunc("GET /rooms/list", h.RoomHandler.ListRooms)
+
+	mx.Handle("POST /bookings/create", middleware.AuthMiddleware.Auth(
+		http.HandlerFunc(h.BookingHandler.Create),
+	))
+	mx.Handle("GET /bookings/get_by_user_id", middleware.AuthMiddleware.Auth(
+		http.HandlerFunc(h.BookingHandler.GetByUserId),
+	))
 }
 
 func main() {
@@ -95,6 +111,7 @@ func main() {
 	dbpool, err := config.ConnectDB(&config.AppConfig.Postgres, dsn)
 
 	if err != nil {
+		logger.Error(err.Error())
 		panic(err)
 	} else {
 		logger.Info("Successfully connected to PostgreSQL database!")

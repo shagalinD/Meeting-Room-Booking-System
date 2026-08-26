@@ -39,7 +39,7 @@ func (m *AuthMiddleware) Auth(next http.Handler) http.Handler {
 
 		claims, err := security.ParseToken(parts[1], m.JWTAccessSecret)
 		if err != nil {
-			writeErrorResponse(w, m.Logger, &apperrors.Errors{Code: apperrors.UnauthorizedError, Message: "invalid or expired token"})
+			writeErrorResponse(w, m.Logger, &apperrors.Errors{Code: apperrors.UnauthorizedError, Message: "invalid or expired token", Err: err})
 			return
 		}
 

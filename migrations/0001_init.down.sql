@@ -1,6 +1,7 @@
 DROP TABLE IF EXISTS bookings;
 DROP TYPE IF EXISTS booking_status;
 DROP INDEX IF EXISTS bookings_index;
+DROP INDEX IF EXISTS booking_user_id_index;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS rooms;
 DROP INDEX IF EXISTS users_email_index;

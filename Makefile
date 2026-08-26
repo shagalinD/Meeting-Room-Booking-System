@@ -9,6 +9,9 @@ down:
 migrate-up:
 	migrate -path ./migrations -database "postgres://postgres:12345678@localhost:5434/postgres?sslmode=disable" up
 
+migrate-down:
+	migrate -path ./migrations -database "postgres://postgres:12345678@localhost:5434/postgres?sslmode=disable" down
+
 migrate-test-up:
 	migrate -path ./migrations -database "postgres://postgres:12345678@localhost:5434/test_db?sslmode=disable" up
 

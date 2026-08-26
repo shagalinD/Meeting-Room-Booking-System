@@ -49,7 +49,6 @@ func CreateRefreshToken(userId string, role string, secret []byte) (string, erro
 			RegisteredClaims: jwt.RegisteredClaims{
 					ExpiresAt: jwt.NewNumericDate(time.Now().Add(7 * 24 * time.Hour)),
 					IssuedAt:  jwt.NewNumericDate(time.Now()),
-					NotBefore: jwt.NewNumericDate(time.Now()),
 			},
 	}
 
@@ -79,9 +78,18 @@ func ParseToken(tokenString string, secret []byte) (*CustomClaims, error) {
         },
     )
     
-		if err != nil {
-			return nil, err
-		}
+    if err != nil {
+        if errors.Is(err, jwt.ErrTokenExpired) {
+            return nil, fmt.Errorf("token expired: %w", err)
+        }
+        if errors.Is(err, jwt.ErrTokenNotValidYet) {
+            return nil, fmt.Errorf("token not valid yet: %w", err)
+        }
+        if errors.Is(err, jwt.ErrTokenMalformed) {
+            return nil, fmt.Errorf("token malformed: %w", err)
+        }
+        return nil, fmt.Errorf("token validation failed: %w", err)
+    }
     
     if !parsedToken.Valid {
         return nil, errors.New("token is invalid")

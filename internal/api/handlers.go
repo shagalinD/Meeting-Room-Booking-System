@@ -10,8 +10,9 @@ import (
 )
 
 type Handlers struct {
-	AuthHandler *AuthHandler
-	RoomHandler *RoomHandler
+	AuthHandler 		*AuthHandler
+	RoomHandler			*RoomHandler
+	BookingHandler 	*BookingHandler
 }
 
 func writeErrorResponse(w http.ResponseWriter, logger *slog.Logger, err error) {
