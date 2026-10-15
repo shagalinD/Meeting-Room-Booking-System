@@ -151,7 +151,7 @@ func main() {
 		} else {
 		}
 	}()
-	logger.Info("Server successfully started: http://localhost" + config.AppConfig.Server.Port + "/health")
+	logger.Info("Server successfully started: https://localhost" + "/health")
 
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
