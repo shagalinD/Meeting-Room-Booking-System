@@ -6,6 +6,7 @@ const (
 	UnauthorizedError
 	InvalidCredentialsError
 	ValidationError
+	ServiceUnavailableError
 )
 
 type Errors struct {

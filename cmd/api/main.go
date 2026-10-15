@@ -2,16 +2,19 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
+	"errors"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	_ "github.com/shdmitri/booking-service/docs"
 	"github.com/shdmitri/booking-service/internal/config"
 	"github.com/shdmitri/booking-service/pkg/logger"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 // @title Meeting Room Booking API
@@ -24,49 +27,44 @@ import (
 // @name Authorization
 // @description Use an access token to authorize requests to protected endpoints.
 func main() {
-	// Config
 	if err := config.LoadConfig(); err != nil {
 		panic(err)
 	}
 
-	// Logger
 	logger := logger.NewLogger(config.AppConfig.Server.LogLevel)
-	logger.Info("Connecting to PostgreSQL database...")
-
-	// DBs connection
-	dsn := fmt.Sprintf(
-		"host=%s port=%s dbname=%s user=%s password=%s sslmode=disable",
-		config.AppConfig.Postgres.Host,
-		config.AppConfig.Postgres.Port,
-		config.AppConfig.Postgres.Name,
-		config.AppConfig.Postgres.User,
-		config.AppConfig.Postgres.Password,
-	)
-
-	dbpool, err := config.ConnectDB(&config.AppConfig.Postgres, dsn)
-
+	authConn, err := connectGRPCService("AUTH_GRPC_ADDR", "localhost:50053")
 	if err != nil {
-		logger.Error(err.Error())
-		panic(err)
-	} else {
-		logger.Info("Successfully connected to PostgreSQL database!")
+		logger.Error("failed to configure auth service connection", "error", err)
+		return
 	}
-
-	logger.Info("Connecting to Redis database...")
-	redisClient, err := config.ConnectRedis(&config.AppConfig.Redis)
-
+	defer authConn.Close()
+	roomConn, err := connectGRPCService("ROOM_GRPC_ADDR", "localhost:50052")
 	if err != nil {
-		panic(err)
+		logger.Error("failed to configure room service connection", "error", err)
+		return
 	}
-	logger.Info("Successfully connected to Redis database!")
-
-	// Starting server
-	logger.Info("Starting server on port " + config.AppConfig.Server.Port)
+	defer roomConn.Close()
+	bookingConn, err := connectGRPCService("BOOKING_GRPC_ADDR", "localhost:50051")
+	if err != nil {
+		logger.Error("failed to configure booking service connection", "error", err)
+		return
+	}
+	defer bookingConn.Close()
 
 	mx := http.NewServeMux()
-	handlers := configHandlers(dbpool, logger, redisClient)
+	handlers := configHandlers(
+		authConn,
+		roomConn,
+		bookingConn,
+		logger,
+	)
 	middlewares := configMiddleware(logger)
-	assignHandlers(mx, handlers, middlewares)
+	healthClients := []healthpb.HealthClient{
+		healthpb.NewHealthClient(authConn),
+		healthpb.NewHealthClient(roomConn),
+		healthpb.NewHealthClient(bookingConn),
+	}
+	assignHandlers(mx, handlers, middlewares, healthClients)
 
 	srv := &http.Server{
 		Addr:              config.AppConfig.Server.Port,
@@ -77,25 +75,43 @@ func main() {
 		IdleTimeout:       config.AppConfig.Server.IdleTimeout,
 	}
 
+	serverErr := make(chan error, 1)
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Ошибка запуска: %v", err)
-		} else {
-		}
+		serverErr <- srv.ListenAndServe()
 	}()
-	logger.Info("Server successfully started: https://localhost" + "/health")
 
-	// Graceful shutdown
+	logger.Info("API gateway started", "address", srv.Addr)
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	logger.Info("Получен сигнал для завершения! Закрываем сервер...")
+	defer signal.Stop(quit)
+
+	select {
+	case sig := <-quit:
+		logger.Info("shutting down API gateway", "signal", sig.String())
+	case err := <-serverErr:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Error("API gateway stopped unexpectedly", "error", err)
+			return
+		}
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), config.AppConfig.Server.ShutdownTimeout)
 	defer cancel()
-
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("Ошибка при graceful shutdown:", err)
+		logger.Error("graceful shutdown failed", "error", err)
 	}
-	logger.Info("Сервер остановлен")
+	logger.Info("API gateway stopped")
+}
+
+func connectGRPCService(envName, defaultAddress string) (*grpc.ClientConn, error) {
+	address := os.Getenv(envName)
+	if address == "" {
+		address = defaultAddress
+	}
+	return grpc.NewClient(
+		address,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
+		grpc.WithConnectParams(grpc.ConnectParams{MinConnectTimeout: time.Second}),
+	)
 }

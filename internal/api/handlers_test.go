@@ -42,23 +42,55 @@ func (s *authServiceStub) RefreshTokens(context.Context, string) (string, string
 type roomServiceStub struct {
 	created *domain.Room
 	filter  domain.RoomFilter
+	roomID  string
 	id      string
+	room    *domain.Room
 	rooms   []*domain.Room
 	err     error
 	calls   int
 }
 
-func (s *roomServiceStub) Create(room *domain.Room) (string, error) {
+func (s *roomServiceStub) Create(_ context.Context, room *domain.Room) (string, error) {
 	s.calls++
 	s.created = room
 	return s.id, s.err
 }
 
-func (*roomServiceStub) GetByID(string) (*domain.Room, error) {
-	panic("unexpected GetByID call")
+func (s *roomServiceStub) GetByID(_ context.Context, id string) (*domain.Room, error) {
+	s.roomID = id
+	return s.room, s.err
 }
 
-func (s *roomServiceStub) List(filter domain.RoomFilter) ([]*domain.Room, error) {
+func TestRoomHandlerGetRoom(t *testing.T) {
+	service := &roomServiceStub{room: &domain.Room{ID: "room-1", Name: "Board room", Description: "Large room", Capacity: 8}}
+	handler := &RoomHandler{Service: service, Logger: testLogger()}
+	request := httptest.NewRequest(http.MethodGet, "/rooms/room-1", nil)
+	request.SetPathValue("id", "room-1")
+	response := httptest.NewRecorder()
+
+	handler.GetRoom(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", response.Code, http.StatusOK, response.Body.String())
+	}
+	if service.roomID != "room-1" {
+		t.Fatalf("GetByID called with %q, want room-1", service.roomID)
+	}
+	var room struct {
+		ID          string `json:"id"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Capacity    int    `json:"capacity"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &room); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if room.ID != "room-1" || room.Name != "Board room" || room.Description != "Large room" || room.Capacity != 8 {
+		t.Fatalf("unexpected room response: %+v", room)
+	}
+}
+
+func (s *roomServiceStub) List(_ context.Context, filter domain.RoomFilter) ([]*domain.Room, error) {
 	s.calls++
 	s.filter = filter
 	return s.rooms, s.err

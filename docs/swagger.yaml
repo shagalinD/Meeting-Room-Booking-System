@@ -73,6 +73,18 @@ definitions:
       refresh_token:
         type: string
     type: object
+  dto.RefreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  dto.RefreshResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
   dto.RegisterRequest:
     properties:
       email:
@@ -140,6 +152,41 @@ paths:
           schema:
             $ref: '#/definitions/api.ErrorResponse'
       summary: Log in
+      tags:
+      - authentication
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Issues a new access and refresh token pair using a valid refresh
+        token.
+      parameters:
+      - description: Refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.RefreshResponse'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Invalid or expired refresh token
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Refresh tokens
       tags:
       - authentication
   /auth/register:
@@ -252,6 +299,51 @@ paths:
       summary: Health check
       tags:
       - system
+  /ready:
+    get:
+      description: Returns success only when Auth, Room, and Booking services are
+        serving.
+      produces:
+      - text/plain
+      responses:
+        "204":
+          description: Gateway and upstream services are ready
+        "503":
+          description: One or more upstream services are unavailable
+      summary: Readiness check
+      tags:
+      - system
+  /rooms/{id}:
+    get:
+      description: Returns a meeting room by its UUID.
+      parameters:
+      - description: Room ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Room'
+        "400":
+          description: Invalid room ID
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Room not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Get a room
+      tags:
+      - rooms
   /rooms/create:
     post:
       consumes:

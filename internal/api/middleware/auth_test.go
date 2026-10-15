@@ -76,8 +76,9 @@ func TestAuthMiddlewareAddsVerifiedClaimsToContext(t *testing.T) {
 		called = true
 		userID, hasUserID := UserIDFromContext(r.Context())
 		role, hasRole := RoleFromContext(r.Context())
-		if !hasUserID || userID != "user-1" || !hasRole || role != "admin" {
-			t.Errorf("context claims = (%q, %q), presence = (%v, %v)", userID, role, hasUserID, hasRole)
+		gotToken, hasToken := AccessTokenFromContext(r.Context())
+		if !hasUserID || userID != "user-1" || !hasRole || role != "admin" || !hasToken || gotToken != token {
+			t.Errorf("context claims = (%q, %q, %q), presence = (%v, %v, %v)", userID, role, gotToken, hasUserID, hasRole, hasToken)
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
@@ -96,5 +97,8 @@ func TestContextClaimHelpersReportMissingClaims(t *testing.T) {
 	}
 	if _, ok := RoleFromContext(request.Context()); ok {
 		t.Fatal("RoleFromContext() returned a value for a context without claims")
+	}
+	if _, ok := AccessTokenFromContext(request.Context()); ok {
+		t.Fatal("AccessTokenFromContext() returned a value for a context without claims")
 	}
 }

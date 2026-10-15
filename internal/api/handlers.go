@@ -26,6 +26,8 @@ func writeErrorResponse(w http.ResponseWriter, logger *slog.Logger, err error) {
 			status = http.StatusUnauthorized
 		case apperrors.NotFoundError:
 			status = http.StatusNotFound
+		case apperrors.ServiceUnavailableError:
+			status = http.StatusServiceUnavailable
 		case apperrors.InternalServerError:
 			// detect conflict-like message produced by repository mapping
 			if aerr.Message != "" && (containsIgnoreCase(aerr.Message, "conflict") || containsIgnoreCase(aerr.Message, "already")) {

@@ -39,6 +39,24 @@ services:
       database:
         condition: service_healthy
 
+  auth:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP: auth
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: database
+      POSTGRES_PORT: "5432"
+      AUTH_GRPC_ADDR: ":50053"
+    expose:
+      - "50053"
+    depends_on:
+      database:
+        condition: service_healthy
+
   server:
     build:
       context: .
@@ -46,22 +64,23 @@ services:
     env_file:
       - .env
     environment:
-      POSTGRES_HOST: database
-      POSTGRES_PORT: "5432"
-      REDIS_HOST: cache
-      REDIS_PORT: "6379"
+      AUTH_GRPC_ADDR: auth:50053
+      ROOM_GRPC_ADDR: room:50052
+      BOOKING_GRPC_ADDR: booking:50051
     expose:
       - "8081"
     depends_on:
-      database:
-        condition: service_healthy
-      cache:
-        condition: service_healthy
+      auth:
+        condition: service_started
+      room:
+        condition: service_started
+      booking:
+        condition: service_started
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8081/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8081/ready"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
       start_period: 10s
 
   nginx:

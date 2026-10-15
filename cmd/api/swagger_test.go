@@ -18,7 +18,7 @@ func TestSwaggerEndpoints(t *testing.T) {
 	authMiddleware := &middleware.AuthMiddleware{
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
-	assignHandlers(mux, api.Handlers{}, &middleware.Middlewares{AuthMiddleware: authMiddleware})
+	assignHandlers(mux, api.Handlers{}, &middleware.Middlewares{AuthMiddleware: authMiddleware}, nil)
 
 	uiResponse := httptest.NewRecorder()
 	mux.ServeHTTP(uiResponse, httptest.NewRequest(http.MethodGet, "/swagger/index.html", nil))
@@ -46,18 +46,18 @@ func TestSwaggerEndpoints(t *testing.T) {
 	}
 	for _, path := range []string{
 		"/health",
+		"/ready",
 		"/auth/register",
 		"/auth/login",
+		"/auth/refresh",
 		"/rooms/create",
 		"/rooms/list",
+		"/rooms/{id}",
 		"/bookings/create",
 		"/bookings/get_by_user_id",
 	} {
 		if _, ok := spec.Paths[path]; !ok {
 			t.Errorf("Swagger spec is missing route %q", path)
 		}
-	}
-	if _, ok := spec.Paths["/auth/refresh"]; ok {
-		t.Error("Swagger spec includes refresh route which is not registered")
 	}
 }

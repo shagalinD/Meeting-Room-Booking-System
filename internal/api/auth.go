@@ -96,21 +96,34 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 // RefreshTokens issues a new token pair from a valid refresh token.
+// @Summary Refresh tokens
+// @Description Issues a new access and refresh token pair using a valid refresh token.
+// @Tags authentication
+// @Accept json
+// @Produce json
+// @Param request body dto.RefreshRequest true "Refresh token"
+// @Success 200 {object} dto.RefreshResponse
+// @Failure 400 {object} ErrorResponse "Invalid request body"
+// @Failure 401 {object} ErrorResponse "Invalid or expired refresh token"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /auth/refresh [post]
 func (h *AuthHandler) RefreshTokens(w http.ResponseWriter, r *http.Request) {
 	var req dto.RefreshRequest
+	defer r.Body.Close()
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		writeErrorResponse(w, h.Logger, &apperrors.Errors{Code: apperrors.ValidationError, Message: "invalid request body"})
 		return
 	}
 
 	accessToken, refreshToken, err := h.S.RefreshTokens(r.Context(), req.RefreshToken)
-
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
+		writeErrorResponse(w, h.Logger, err)
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(dto.RefreshResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,

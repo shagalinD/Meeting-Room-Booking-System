@@ -29,3 +29,6 @@ run-booking:
 
 run-room:
 	docker compose up --build room
+
+run-auth:
+	docker compose up --build auth

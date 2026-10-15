@@ -15,6 +15,7 @@ type contextKey string
 const (
 	userIDContextKey contextKey = "user_id"
 	roleContextKey   contextKey = "role"
+	tokenContextKey  contextKey = "access_token"
 )
 
 type AuthMiddleware struct {
@@ -45,9 +46,15 @@ func (m *AuthMiddleware) Auth(next http.Handler) http.Handler {
 
 		ctx := context.WithValue(r.Context(), userIDContextKey, claims.UserID)
 		ctx = context.WithValue(ctx, roleContextKey, claims.Role)
+		ctx = context.WithValue(ctx, tokenContextKey, strings.TrimSpace(parts[1]))
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func AccessTokenFromContext(ctx context.Context) (string, bool) {
+	token, ok := ctx.Value(tokenContextKey).(string)
+	return token, ok
 }
 
 func UserIDFromContext(ctx context.Context) (string, bool) {

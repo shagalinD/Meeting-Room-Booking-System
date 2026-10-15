@@ -18,6 +18,6 @@ WORKDIR /app
 COPY --from=build /out/server ./server
 
 USER app
-EXPOSE 8081 50051
+EXPOSE 8081 50051 50052 50053
 
 ENTRYPOINT ["./server"]

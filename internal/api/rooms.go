@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -12,8 +13,14 @@ import (
 	apperrors "github.com/shdmitri/booking-service/pkg/errors"
 )
 
+type RoomService interface {
+	Create(context.Context, *domain.Room) (string, error)
+	List(context.Context, domain.RoomFilter) ([]*domain.Room, error)
+	GetByID(context.Context, string) (*domain.Room, error)
+}
+
 type RoomHandler struct {
-	Service domain.RoomService
+	Service RoomService
 	Logger  *slog.Logger
 }
 
@@ -55,7 +62,7 @@ func (h *RoomHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := h.Service.Create(&domain.Room{
+	id, err := h.Service.Create(r.Context(), &domain.Room{
 		Name:        room.Name,
 		Description: room.Description,
 		Capacity:    room.Capacity,
@@ -108,7 +115,7 @@ func (h *RoomHandler) ListRooms(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rooms, err := h.Service.List(domain.RoomFilter{
+	rooms, err := h.Service.List(r.Context(), domain.RoomFilter{
 		MinCapacity: minCapacity,
 		MaxCapacity: maxCapacity,
 	})
@@ -121,6 +128,33 @@ func (h *RoomHandler) ListRooms(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(dto.ListRoomsResponse{
 		Rooms: toDTORooms(rooms),
+	})
+}
+
+// GetRoom returns a room by its ID.
+// @Summary Get a room
+// @Description Returns a meeting room by its UUID.
+// @Tags rooms
+// @Produce json
+// @Param id path string true "Room ID"
+// @Success 200 {object} dto.Room
+// @Failure 400 {object} ErrorResponse "Invalid room ID"
+// @Failure 404 {object} ErrorResponse "Room not found"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /rooms/{id} [get]
+func (h *RoomHandler) GetRoom(w http.ResponseWriter, r *http.Request) {
+	room, err := h.Service.GetByID(r.Context(), r.PathValue("id"))
+	if err != nil {
+		writeErrorResponse(w, h.Logger, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(dto.Room{
+		ID:          room.ID,
+		Name:        room.Name,
+		Description: room.Description,
+		Capacity:    room.Capacity,
 	})
 }
 
