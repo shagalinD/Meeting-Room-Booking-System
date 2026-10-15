@@ -1,0 +1,343 @@
+basePath: /
+definitions:
+  api.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  dto.Booking:
+    properties:
+      end_time:
+        type: string
+      id:
+        type: string
+      room_id:
+        type: string
+      start_time:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      user_id:
+        type: string
+    type: object
+  dto.CreateBookingRequest:
+    properties:
+      end_time:
+        type: string
+      room_id:
+        type: string
+      start_time:
+        type: string
+      title:
+        type: string
+    type: object
+  dto.CreateBookingResponse:
+    properties:
+      booking_id:
+        type: string
+    type: object
+  dto.CreateRoomRequest:
+    properties:
+      capacity:
+        type: integer
+      description:
+        type: string
+      name:
+        type: string
+    type: object
+  dto.CreateRoomResponse:
+    properties:
+      id:
+        type: string
+    type: object
+  dto.ListRoomsResponse:
+    properties:
+      rooms:
+        items:
+          $ref: '#/definitions/dto.Room'
+        type: array
+    type: object
+  dto.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  dto.LoginResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
+  dto.RegisterRequest:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      password:
+        type: string
+    type: object
+  dto.RegisterResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
+  dto.Room:
+    properties:
+      capacity:
+        type: integer
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: HTTP API for authentication, meeting-room discovery, and booking management.
+  title: Meeting Room Booking API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user with an email address and password.
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.LoginResponse'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Log in
+      tags:
+      - authentication
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a user account and returns signed access and refresh tokens.
+      parameters:
+      - description: User registration details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.RegisterResponse'
+        "400":
+          description: Invalid request body or registration details
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: An account with this email already exists
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Register a user
+      tags:
+      - authentication
+  /bookings/create:
+    post:
+      consumes:
+      - application/json
+      description: Creates a confirmed booking for the user identified by the access
+        token. Times must be RFC 3339 timestamps and start must not be after end.
+      parameters:
+      - description: Booking details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateBookingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.CreateBookingResponse'
+        "400":
+          description: Invalid booking details
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Missing or invalid access token
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a booking
+      tags:
+      - bookings
+  /bookings/get_by_user_id:
+    get:
+      description: Returns bookings belonging to the user identified by the access
+        token.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.Booking'
+            type: array
+        "401":
+          description: Missing or invalid access token
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List my bookings
+      tags:
+      - bookings
+  /health:
+    get:
+      description: Returns a plain-text response when the API process is running.
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Server is up and running
+          schema:
+            type: string
+      summary: Health check
+      tags:
+      - system
+  /rooms/create:
+    post:
+      consumes:
+      - application/json
+      description: Creates a room. Requires a valid access token belonging to an admin.
+      parameters:
+      - description: Room details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateRoomRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.CreateRoomResponse'
+        "400":
+          description: Invalid request body or room details
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Missing/invalid access token or user is not an admin
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: A room with conflicting details already exists
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a room
+      tags:
+      - rooms
+  /rooms/list:
+    get:
+      description: Lists rooms whose capacity is within the inclusive minimum and
+        maximum. Defaults are 0 and 10000.
+      parameters:
+      - default: 0
+        description: Minimum room capacity
+        in: query
+        minimum: 0
+        name: min_capacity
+        type: integer
+      - default: 10000
+        description: Maximum room capacity
+        in: query
+        minimum: 0
+        name: max_capacity
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ListRoomsResponse'
+        "400":
+          description: Capacity filter is invalid
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Capacity query parameter is not a valid integer
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: List rooms
+      tags:
+      - rooms
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: Use an access token to authorize requests to protected endpoints.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

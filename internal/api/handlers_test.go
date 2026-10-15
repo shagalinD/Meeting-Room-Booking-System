@@ -213,6 +213,15 @@ func TestRoomHandlerCreateRoomRequiresAdminRole(t *testing.T) {
 			t.Fatalf("created room = %+v", service.created)
 		}
 	})
+
+	t.Run("invalid JSON returns a documented error", func(t *testing.T) {
+		response := httptest.NewRecorder()
+		request := withRole(httptest.NewRequest(http.MethodPost, "/rooms/create", strings.NewReader("{")), "admin")
+		handler.CreateRoom(response, request)
+		if response.Code != http.StatusBadRequest || response.Header().Get("Content-Type") != "application/json" {
+			t.Fatalf("status=%d Content-Type=%q", response.Code, response.Header().Get("Content-Type"))
+		}
+	})
 }
 
 func TestBookingHandlerCreateUsesAuthenticatedUser(t *testing.T) {
@@ -224,8 +233,8 @@ func TestBookingHandlerCreateUsesAuthenticatedUser(t *testing.T) {
 	response := httptest.NewRecorder()
 	handler.Create(response, request)
 
-	if response.Code != http.StatusOK || service.created == nil {
-		t.Fatalf("status=%d created=%+v body=%q", response.Code, service.created, response.Body.String())
+	if response.Code != http.StatusOK || response.Header().Get("Content-Type") != "application/json" || service.created == nil {
+		t.Fatalf("status=%d Content-Type=%q created=%+v body=%q", response.Code, response.Header().Get("Content-Type"), service.created, response.Body.String())
 	}
 	if service.created.UserId != "user-1" || service.created.RoomId != "room-1" || !service.created.StartTime.Equal(start) {
 		t.Fatalf("created booking = %+v", service.created)
@@ -233,6 +242,13 @@ func TestBookingHandlerCreateUsesAuthenticatedUser(t *testing.T) {
 	var result map[string]string
 	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil || result["booking_id"] != "booking-1" {
 		t.Fatalf("response=%v decode error=%v", result, err)
+	}
+
+	badRequest := withUserID(httptest.NewRequest(http.MethodPost, "/bookings/create", strings.NewReader("{")), "user-1")
+	badResponse := httptest.NewRecorder()
+	handler.Create(badResponse, badRequest)
+	if badResponse.Code != http.StatusBadRequest || badResponse.Header().Get("Content-Type") != "application/json" {
+		t.Fatalf("invalid body status=%d Content-Type=%q", badResponse.Code, badResponse.Header().Get("Content-Type"))
 	}
 }
 
@@ -243,8 +259,8 @@ func TestBookingHandlerGetByUserIDUsesAuthenticatedUser(t *testing.T) {
 	response := httptest.NewRecorder()
 	handler.GetByUserId(response, request)
 
-	if response.Code != http.StatusOK || service.userID != "user-1" {
-		t.Fatalf("status=%d service user ID=%q", response.Code, service.userID)
+	if response.Code != http.StatusOK || response.Header().Get("Content-Type") != "application/json" || service.userID != "user-1" {
+		t.Fatalf("status=%d Content-Type=%q service user ID=%q", response.Code, response.Header().Get("Content-Type"), service.userID)
 	}
 	var bookings []map[string]any
 	if err := json.Unmarshal(response.Body.Bytes(), &bookings); err != nil {
