@@ -10,11 +10,11 @@ import (
 )
 
 type bookingRepositoryStub struct {
-	createdID string
-	created   *domain.Booking
-	userID    string
-	bookings  []*domain.Booking
-	err       error
+	createdID   string
+	created     *domain.Booking
+	userID      string
+	bookings    []*domain.Booking
+	err         error
 	createCalls int
 	getCalls    int
 }
