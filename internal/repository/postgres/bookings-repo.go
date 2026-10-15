@@ -36,6 +36,7 @@ func (br *BookingRepository) GetByUserId(ctx context.Context, userId string) ([]
 	if err != nil {
 		return nil, MapError(err)
 	}
+	defer conn.Release()
 
 	queries := db.New(conn)
 	bookings, err := queries.GetByUserId(ctx, pgUUID)
@@ -61,42 +62,40 @@ func (br *BookingRepository) GetByUserId(ctx context.Context, userId string) ([]
 
 func (br *BookingRepository) Create(ctx context.Context, booking *domain.Booking) (string, error) {
 	tx, err := br.pool.Begin(ctx)
+	if err != nil {
+		return "", MapError(err)
+	}
 	defer tx.Rollback(ctx)
 
+	params, err := toRepositoryParams(booking)
 	if err != nil {
 		return "", MapError(err)
 	}
-	params, err := toRepositoryParams(booking)
 	query := br.db.WithTx(tx)
 
-	if _, err := query.SelectRoomForUpdate(ctx, params.RoomID); 
-	err != nil {
+	if _, err := query.SelectRoomForUpdate(ctx, params.RoomID); err != nil {
 		return "", MapError(err)
 	}
 
-	if err != nil {
-		return "", MapError(err)
-	}
-	
 	found, err := getIntersections(ctx, br, params.RoomID, params.StartTime, params.EndTime)
 
 	if err != nil {
-		return "", MapError(err) 
+		return "", MapError(err)
 	}
 
 	if found {
 		return "", &apperrors.Errors{
-				Err:     err,
-				Code:    apperrors.ValidationError,
-				Message: "Conflict with existing data",
+			Err:     err,
+			Code:    apperrors.ValidationError,
+			Message: "Conflict with existing data",
 		}
 	}
 
 	booking_id, err := query.CreateBooking(ctx, params)
-	
+
 	if err != nil {
-		return "", err 
-	} 
+		return "", err
+	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return "", MapError(err)
@@ -163,5 +162,3 @@ func ParseUUID(id string) (pgtype.UUID, error) {
 
     return pgUUID, nil
 }
-
-

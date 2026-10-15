@@ -27,6 +27,23 @@
 | Веб-сервер и TLS    | Nginx, самоподписанный сертификат для разработки |
 | Контейнеризация     | Docker, Docker Compose                           |
 
+## Booking gRPC service
+
+Сервис бронирований запускается отдельным Go-процессом из `cmd/booking`.
+Он реализует версионированный контракт `BookingService` из модуля
+`github.com/shagalinD/booking-service-proto/gen/go` и слушает
+`BOOKING_GRPC_ADDR` (по умолчанию `:50051`). Для вызовов RPC передавайте
+access-токен в gRPC metadata: `authorization: Bearer <token>`.
+
+Запустить сервис вместе с PostgreSQL и Redis можно командами
+`make run-booking` или `docker compose up --build booking`. В Compose порт
+gRPC доступен только внутри Docker-сети; для локального gRPC-клиента при
+необходимости добавьте публикацию порта на хост.
+
+Это первый шаг выделения: существующий HTTP API пока работает параллельно,
+а новый gRPC-сервис использует существующие бизнес-логику бронирования,
+репозиторий PostgreSQL и Redis-кэш.
+
 ## Запуск через Docker Compose
 
 Требуются Docker и Docker Compose.

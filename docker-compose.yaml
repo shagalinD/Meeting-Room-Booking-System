@@ -1,4 +1,26 @@
 services:
+  booking:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP: booking
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: database
+      POSTGRES_PORT: "5432"
+      REDIS_HOST: cache
+      REDIS_PORT: "6379"
+      BOOKING_GRPC_ADDR: ":50051"
+    expose:
+      - "50051"
+    depends_on:
+      database:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+
   server:
     build:
       context: .

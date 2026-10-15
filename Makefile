@@ -23,3 +23,6 @@ test:
 
 run:
 	docker compose up
+
+run-booking:
+	docker compose up --build booking

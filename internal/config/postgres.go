@@ -3,6 +3,8 @@ package config
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/url"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -20,6 +22,17 @@ type PostgresConfig struct {
 	MaxIdleConns    int           `mapstructure:"max_idle_conns"`
 	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"`
 	ConnMaxIdleTime time.Duration `mapstructure:"conn_max_idle_time"`
+}
+
+func (cfg *PostgresConfig) ConnectionString() string {
+	u := url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(cfg.User, cfg.Password),
+		Host:   net.JoinHostPort(cfg.Host, cfg.Port),
+		Path:   cfg.Name,
+	}
+	u.RawQuery = url.Values{"sslmode": {"disable"}}.Encode()
+	return u.String()
 }
 
 func ConnectDB(cfg *PostgresConfig, dsn string) (*pgxpool.Pool, error) {
@@ -48,4 +61,3 @@ func ConnectDB(cfg *PostgresConfig, dsn string) (*pgxpool.Pool, error) {
 
 	return dbpool, nil
 }
-

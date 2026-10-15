@@ -2,11 +2,13 @@ FROM golang:1.26.1-alpine AS build
 
 WORKDIR /src
 
+ARG APP=api
+
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/server ./cmd/api
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/server ./cmd/${APP}
 
 FROM alpine:3.22
 
@@ -16,6 +18,6 @@ WORKDIR /app
 COPY --from=build /out/server ./server
 
 USER app
-EXPOSE 8081
+EXPOSE 8081 50051
 
 ENTRYPOINT ["./server"]
