@@ -51,10 +51,10 @@ type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) (pgtype.UUID, error)
 	GetByUserId(ctx context.Context, userID pgtype.UUID) ([]Booking, error)
 	GetIntersections(ctx context.Context, arg GetIntersectionsParams) (Booking, error)
-	GetRoomByID(ctx context.Context, id pgtype.UUID) (Room, error)
+	GetRoomByID(ctx context.Context, id pgtype.UUID) (GetRoomByIDRow, error)
 	GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (GetUserByIDRow, error)
-	ListRooms(ctx context.Context, arg ListRoomsParams) ([]Room, error)
+	ListRooms(ctx context.Context, arg ListRoomsParams) ([]ListRoomsRow, error)
 	SelectRoomForUpdate(ctx context.Context, id pgtype.UUID) (Room, error)
 	UpdateRoom(ctx context.Context, arg UpdateRoomParams) error
 }

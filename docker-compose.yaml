@@ -21,6 +21,24 @@ services:
       cache:
         condition: service_healthy
 
+  room:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP: room
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: database
+      POSTGRES_PORT: "5432"
+      ROOM_GRPC_ADDR: ":50052"
+    expose:
+      - "50052"
+    depends_on:
+      database:
+        condition: service_healthy
+
   server:
     build:
       context: .

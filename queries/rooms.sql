@@ -11,12 +11,12 @@
 -- );
 
 -- name: CreateRoom :one
-INSERT INTO rooms (name, capacity, floor, has_projector, has_sound, is_active)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO rooms (name, description, capacity, floor, has_projector, has_sound, is_active)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id;
 
 -- name: GetRoomByID :one
-SELECT id, name, capacity, floor, has_projector, has_sound, is_active, created_at, updated_at
+SELECT id, name, description, capacity, floor, has_projector, has_sound, is_active, created_at, updated_at
 FROM rooms
 WHERE id = $1;
 
@@ -26,7 +26,7 @@ SET name = $1, capacity = $2, floor = $3, has_projector = $4, has_sound = $5, is
 WHERE id = $7;
 
 -- name: ListRooms :many
-SELECT id, name, capacity, floor, has_projector, has_sound, is_active, created_at, updated_at
+SELECT id, name, description, capacity, floor, has_projector, has_sound, is_active, created_at, updated_at
 FROM rooms
 WHERE capacity >= $1 AND capacity <= $2
 ORDER BY name

@@ -11,6 +11,8 @@ import (
 type roomRepositoryStub struct {
 	createID string
 	created  *domain.Room
+	roomID   string
+	room     *domain.Room
 	listed   domain.RoomFilter
 	rooms    []*domain.Room
 	updated  *domain.Room
@@ -25,8 +27,10 @@ func (r *roomRepositoryStub) Create(room *domain.Room) (string, error) {
 	return r.createID, r.err
 }
 
-func (r *roomRepositoryStub) GetByID(string) (*domain.Room, error) {
-	panic("unexpected GetByID call")
+func (r *roomRepositoryStub) GetByID(id string) (*domain.Room, error) {
+	r.calls++
+	r.roomID = id
+	return r.room, r.err
 }
 
 func (r *roomRepositoryStub) List(filter domain.RoomFilter) ([]*domain.Room, error) {
@@ -111,6 +115,28 @@ func TestRoomServiceList(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRoomServiceGetByID(t *testing.T) {
+	t.Run("valid ID delegates to repository", func(t *testing.T) {
+		roomID := "00000000-0000-4000-8000-000000000001"
+		wantRoom := &domain.Room{ID: roomID, Name: "Board room", Capacity: 8}
+		repo := &roomRepositoryStub{room: wantRoom}
+		room, err := (&RoomService{Repo: repo}).GetByID(roomID)
+		if err != nil || room != wantRoom || repo.roomID != roomID || repo.calls != 1 {
+			t.Fatalf("GetByID() room=%+v error=%v repo=%+v", room, err, repo)
+		}
+	})
+
+	t.Run("missing ID is rejected", func(t *testing.T) {
+		repo := &roomRepositoryStub{}
+		room, err := (&RoomService{Repo: repo}).GetByID("not-a-uuid")
+		var appErr *apperrors.Errors
+		if room != nil || !errors.As(err, &appErr) ||
+			appErr.Code != apperrors.ValidationError || repo.calls != 0 {
+			t.Fatalf("GetByID() room=%+v error=%v calls=%d", room, err, repo.calls)
+		}
+	})
 }
 
 func TestRoomServiceUpdateAndDelete(t *testing.T) {

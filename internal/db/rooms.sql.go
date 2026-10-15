@@ -13,13 +13,14 @@ import (
 
 const createRoom = `-- name: CreateRoom :one
 
-INSERT INTO rooms (name, capacity, floor, has_projector, has_sound, is_active)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO rooms (name, description, capacity, floor, has_projector, has_sound, is_active)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id
 `
 
 type CreateRoomParams struct {
 	Name         string `json:"name"`
+	Description  string `json:"description"`
 	Capacity     int32  `json:"capacity"`
 	Floor        int32  `json:"floor"`
 	HasProjector bool   `json:"has_projector"`
@@ -43,6 +44,7 @@ type CreateRoomParams struct {
 func (q *Queries) CreateRoom(ctx context.Context, arg CreateRoomParams) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, createRoom,
 		arg.Name,
+		arg.Description,
 		arg.Capacity,
 		arg.Floor,
 		arg.HasProjector,
@@ -55,17 +57,31 @@ func (q *Queries) CreateRoom(ctx context.Context, arg CreateRoomParams) (pgtype.
 }
 
 const getRoomByID = `-- name: GetRoomByID :one
-SELECT id, name, capacity, floor, has_projector, has_sound, is_active, created_at, updated_at
+SELECT id, name, description, capacity, floor, has_projector, has_sound, is_active, created_at, updated_at
 FROM rooms
 WHERE id = $1
 `
 
-func (q *Queries) GetRoomByID(ctx context.Context, id pgtype.UUID) (Room, error) {
+type GetRoomByIDRow struct {
+	ID           pgtype.UUID        `json:"id"`
+	Name         string             `json:"name"`
+	Description  string             `json:"description"`
+	Capacity     int32              `json:"capacity"`
+	Floor        int32              `json:"floor"`
+	HasProjector bool               `json:"has_projector"`
+	HasSound     bool               `json:"has_sound"`
+	IsActive     bool               `json:"is_active"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) GetRoomByID(ctx context.Context, id pgtype.UUID) (GetRoomByIDRow, error) {
 	row := q.db.QueryRow(ctx, getRoomByID, id)
-	var i Room
+	var i GetRoomByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
+		&i.Description,
 		&i.Capacity,
 		&i.Floor,
 		&i.HasProjector,
@@ -78,7 +94,7 @@ func (q *Queries) GetRoomByID(ctx context.Context, id pgtype.UUID) (Room, error)
 }
 
 const listRooms = `-- name: ListRooms :many
-SELECT id, name, capacity, floor, has_projector, has_sound, is_active, created_at, updated_at
+SELECT id, name, description, capacity, floor, has_projector, has_sound, is_active, created_at, updated_at
 FROM rooms
 WHERE capacity >= $1 AND capacity <= $2
 ORDER BY name
@@ -92,7 +108,20 @@ type ListRoomsParams struct {
 	Limit      int32 `json:"limit"`
 }
 
-func (q *Queries) ListRooms(ctx context.Context, arg ListRoomsParams) ([]Room, error) {
+type ListRoomsRow struct {
+	ID           pgtype.UUID        `json:"id"`
+	Name         string             `json:"name"`
+	Description  string             `json:"description"`
+	Capacity     int32              `json:"capacity"`
+	Floor        int32              `json:"floor"`
+	HasProjector bool               `json:"has_projector"`
+	HasSound     bool               `json:"has_sound"`
+	IsActive     bool               `json:"is_active"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) ListRooms(ctx context.Context, arg ListRoomsParams) ([]ListRoomsRow, error) {
 	rows, err := q.db.Query(ctx, listRooms,
 		arg.Capacity,
 		arg.Capacity_2,
@@ -103,12 +132,13 @@ func (q *Queries) ListRooms(ctx context.Context, arg ListRoomsParams) ([]Room, e
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Room{}
+	items := []ListRoomsRow{}
 	for rows.Next() {
-		var i Room
+		var i ListRoomsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
+			&i.Description,
 			&i.Capacity,
 			&i.Floor,
 			&i.HasProjector,
@@ -128,7 +158,7 @@ func (q *Queries) ListRooms(ctx context.Context, arg ListRoomsParams) ([]Room, e
 }
 
 const selectRoomForUpdate = `-- name: SelectRoomForUpdate :one
-SELECT id, name, capacity, floor, has_projector, has_sound, is_active, created_at, updated_at FROM rooms
+SELECT id, name, capacity, floor, has_projector, has_sound, is_active, created_at, updated_at, description FROM rooms
 WHERE id = $1
 FOR UPDATE
 `
@@ -146,6 +176,7 @@ func (q *Queries) SelectRoomForUpdate(ctx context.Context, id pgtype.UUID) (Room
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Description,
 	)
 	return i, err
 }

@@ -26,3 +26,6 @@ run:
 
 run-booking:
 	docker compose up --build booking
+
+run-room:
+	docker compose up --build room

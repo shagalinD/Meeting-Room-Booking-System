@@ -8,9 +8,7 @@ import (
 	bookingpb "github.com/shagalinD/booking-service-proto/gen/go"
 	"github.com/shdmitri/booking-service/internal/domain"
 	apperrors "github.com/shdmitri/booking-service/pkg/errors"
-	"github.com/shdmitri/booking-service/pkg/security"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -88,24 +86,9 @@ func (s *BookingServer) ListMyBookings(ctx context.Context, _ *emptypb.Empty) (*
 }
 
 func (s *BookingServer) authenticatedUserID(ctx context.Context) (string, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return "", status.Error(codes.Unauthenticated, "missing authorization metadata")
-	}
-
-	values := md.Get("authorization")
-	if len(values) == 0 {
-		return "", status.Error(codes.Unauthenticated, "missing authorization metadata")
-	}
-
-	parts := strings.SplitN(strings.TrimSpace(values[0]), " ", 2)
-	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || strings.TrimSpace(parts[1]) == "" {
-		return "", status.Error(codes.Unauthenticated, "invalid authorization metadata")
-	}
-
-	claims, err := security.ParseToken(strings.TrimSpace(parts[1]), s.jwtSecret)
-	if err != nil || strings.TrimSpace(claims.UserID) == "" {
-		return "", status.Error(codes.Unauthenticated, "invalid or expired access token")
+	claims, err := authenticatedClaims(ctx, s.jwtSecret)
+	if err != nil {
+		return "", err
 	}
 	return claims.UserID, nil
 }
@@ -151,12 +134,13 @@ func toStatusError(err error) error {
 		return status.Error(codes.Internal, "internal server error")
 	}
 
+	message := strings.ToLower(appErr.Message)
+	if strings.Contains(message, "conflict") || strings.Contains(message, "already") {
+		return status.Error(codes.AlreadyExists, appErr.Message)
+	}
+
 	switch appErr.Code {
 	case apperrors.ValidationError:
-		if strings.Contains(strings.ToLower(appErr.Message), "conflict") ||
-			strings.Contains(strings.ToLower(appErr.Message), "already") {
-			return status.Error(codes.AlreadyExists, appErr.Message)
-		}
 		return status.Error(codes.InvalidArgument, appErr.Message)
 	case apperrors.NotFoundError:
 		return status.Error(codes.NotFound, appErr.Message)

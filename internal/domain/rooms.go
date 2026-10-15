@@ -23,7 +23,7 @@ type (
 
 	RoomService interface {
 		Create(room *Room) (string, error)
-		// GetByID(id string) (*Room, error)
+		GetByID(id string) (*Room, error)
 		List(filter RoomFilter) ([]*Room, error)
 		Update(room *Room) error
 		Delete(id string) error

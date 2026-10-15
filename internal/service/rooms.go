@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/google/uuid"
 	"github.com/shdmitri/booking-service/internal/domain"
 	apperrors "github.com/shdmitri/booking-service/pkg/errors"
 )
@@ -13,7 +14,6 @@ import (
 // }
 
 var _ domain.RoomService = (*RoomService)(nil)
-
 
 type RoomService struct {
 	Repo domain.RoomRepository
@@ -37,6 +37,17 @@ func (s *RoomService) Create(room *domain.Room) (string, error) {
 	}
 
 	return s.Repo.Create(room)
+}
+
+func (s *RoomService) GetByID(id string) (*domain.Room, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return nil, &apperrors.Errors{
+			Code:    apperrors.ValidationError,
+			Message: "room ID must be a valid UUID",
+		}
+	}
+
+	return s.Repo.GetByID(id)
 }
 
 func (s *RoomService) List(filter domain.RoomFilter) ([]*domain.Room, error) {

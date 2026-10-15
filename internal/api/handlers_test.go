@@ -54,6 +54,10 @@ func (s *roomServiceStub) Create(room *domain.Room) (string, error) {
 	return s.id, s.err
 }
 
+func (*roomServiceStub) GetByID(string) (*domain.Room, error) {
+	panic("unexpected GetByID call")
+}
+
 func (s *roomServiceStub) List(filter domain.RoomFilter) ([]*domain.Room, error) {
 	s.calls++
 	s.filter = filter

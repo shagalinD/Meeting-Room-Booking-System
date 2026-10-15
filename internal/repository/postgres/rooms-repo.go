@@ -24,6 +24,7 @@ func NewRoomsRepository(pool *pgxpool.Pool) *RoomsRepository {
 func (rr *RoomsRepository) Create(room *domain.Room) (string, error) {
 	id, err := rr.db.CreateRoom(context.Background(), db.CreateRoomParams{
 		Name:         room.Name,
+		Description:  room.Description,
 		Capacity:     int32(room.Capacity),
 		Floor:        0,
 		HasProjector: false,
@@ -47,7 +48,7 @@ func (rr *RoomsRepository) GetByID(id string) (*domain.Room, error) {
 	return &domain.Room{
 		ID:          roomRow.ID.String(),
 		Name:        roomRow.Name,
-		Description: "",
+		Description: roomRow.Description,
 		Capacity:    int(roomRow.Capacity),
 	}, nil
 }
@@ -68,7 +69,7 @@ func (rr *RoomsRepository) List(filter domain.RoomFilter) ([]*domain.Room, error
 		result = append(result, &domain.Room{
 			ID:          room.ID.String(),
 			Name:        room.Name,
-			Description: "",
+			Description: room.Description,
 			Capacity:    int(room.Capacity),
 		})
 	}
@@ -115,4 +116,3 @@ func (rr *RoomsRepository) Delete(id string) error {
 
 	return nil
 }
-
