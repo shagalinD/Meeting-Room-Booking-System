@@ -15,6 +15,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	bookingpb "github.com/shagalinD/booking-service-proto/gen/go"
 	"github.com/shdmitri/booking-service/internal/config"
+	"github.com/shdmitri/booking-service/internal/messaging/kafka"
+	"github.com/shdmitri/booking-service/internal/outbox"
 	postgres "github.com/shdmitri/booking-service/internal/repository/postgres"
 	bookingcache "github.com/shdmitri/booking-service/internal/repository/redis"
 	"github.com/shdmitri/booking-service/internal/service"
@@ -53,6 +55,20 @@ func run() error {
 	}
 	defer closeRedis(log, redisClient)
 
+	kafkaConfig, err := kafka.ConfigFromEnv()
+	if err != nil {
+		return fmt.Errorf("load Kafka configuration: %w", err)
+	}
+	kafkaProducer, err := kafka.NewProducer(kafkaConfig.Brokers, kafkaConfig.Topic)
+	if err != nil {
+		return fmt.Errorf("create Kafka producer: %w", err)
+	}
+	defer func() {
+		if err := kafkaProducer.Close(); err != nil {
+			log.Error("close Kafka producer", "error", err)
+		}
+	}()
+
 	repository := postgres.NewBookingRepository(dbpool)
 	cachedRepository := bookingcache.NewBookingCacheRepository(
 		repository,
@@ -87,6 +103,18 @@ func run() error {
 		healthpb.HealthCheckResponse_SERVING,
 	)
 
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	worker := &outbox.Worker{
+		Repository: repository,
+		Publisher:  kafkaProducer,
+		Logger:     log,
+	}
+	workerDone := make(chan error, 1)
+	go func() {
+		workerDone <- worker.Run(ctx)
+	}()
+
 	serveErr := make(chan error, 1)
 	go func() {
 		if err := grpcServer.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
@@ -97,19 +125,23 @@ func run() error {
 	}()
 
 	log.Info("booking gRPC service started", "address", listener.Addr().String())
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	select {
 	case <-ctx.Done():
 		log.Info("shutdown signal received")
 	case err := <-serveErr:
+		stop()
+		<-workerDone
 		if err != nil {
 			return fmt.Errorf("serve gRPC: %w", err)
 		}
 		return nil
 	}
 
+	stop()
+	if err := <-workerDone; err != nil {
+		log.Error("booking outbox worker stopped", "error", err)
+	}
 	healthServer.SetServingStatus("", healthpb.HealthCheckResponse_NOT_SERVING)
 	shutdownGracefully(grpcServer, config.AppConfig.Server.ShutdownTimeout)
 	log.Info("booking gRPC service stopped")

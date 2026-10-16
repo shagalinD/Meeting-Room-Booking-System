@@ -1,12 +1,13 @@
 # Meeting Room Booking System
 
-Система бронирования переговорных комнат на Go. HTTP API Gateway направляет запросы в отдельные gRPC-сервисы Auth, Room и Booking. Сервисы используют PostgreSQL, а Booking дополнительно использует Redis для кэширования. Kafka пока не используется.
+Система бронирования переговорных комнат на Go. HTTP API Gateway направляет запросы в отдельные gRPC-сервисы Auth, Room и Booking. Сервисы используют PostgreSQL, Booking дополнительно использует Redis для кэширования, а события создания бронирований доставляются через Kafka с transactional outbox.
 
 ## Возможности
 
 - Регистрация и вход с выдачей access и refresh JWT.
 - Создание и просмотр комнат с фильтрами по вместимости.
 - Создание бронирования и просмотр бронирований текущего пользователя.
+- Публикация событий `booking.created` через Kafka с transactional outbox и повторными попытками.
 - Хеширование паролей с Argon2id.
 - Docker Compose для запуска приложения и зависимостей.
 - Nginx как HTTPS-точка входа: HTTP перенаправляется на HTTPS, запросы к Go-серверу проксируются по HTTP внутри сети Compose.
@@ -22,6 +23,7 @@
 | База данных         | PostgreSQL                                       |
 | SQL                 | sqlc                                             |
 | Кэш                 | Redis                                            |
+| События             | Apache Kafka                                     |
 | Аутентификация      | JWT                                              |
 | Хеширование паролей | Argon2id                                         |
 | API-документация    | Swagger (OpenAPI 2.0)                            |
@@ -42,6 +44,13 @@ gRPC доступен только внутри Docker-сети; для лока
 необходимости добавьте публикацию порта на хост.
 
 HTTP API Gateway передаёт запросы бронирований этому сервису. Gateway пересылает access-токен через gRPC metadata; Booking сам проверяет токен и определяет пользователя.
+
+При создании бронирования сервис атомарно сохраняет запись и событие `booking.created`
+в PostgreSQL. Фоновый publisher отправляет события в Kafka topic `booking.events`;
+при недоступности брокера событие остаётся в outbox и будет повторено. Доставка
+имеет семантику at-least-once, поэтому будущие consumers должны быть идемпотентны.
+Событие содержит `id`, `type`, `schema_version`, `occurred_at` и `data` с ID
+бронирования, пользователя и комнаты, временем, названием и статусом.
 
 ## Room gRPC service
 
@@ -94,6 +103,10 @@ HTTP API Gateway передаёт запросы бронирований это
    JWT_ACCESS_SECRET=replace-with-a-long-random-access-secret
    JWT_REFRESH_SECRET=replace-with-a-long-random-refresh-secret
    SERVER_PORT=:8081
+
+   KAFKA_BROKERS=localhost:9092
+   KAFKA_TOPIC=booking.events
+   KAFKA_CONSUMER_GROUP=booking-event-logger
    ```
 
    Используйте собственные случайные секреты. Файл `.env` не следует добавлять в Git.
@@ -104,7 +117,7 @@ HTTP API Gateway передаёт запросы бронирований это
    docker compose up --build
    ```
 
-   Либо используйте `make up`. При первом запуске Compose соберёт API Gateway, все gRPC-сервисы и Nginx. Nginx автоматически создаст самоподписанный сертификат и сохранит его вместе с ключом в Docker volume.
+   Либо используйте `make up`. При первом запуске Compose соберёт API Gateway, все gRPC-сервисы, Kafka consumer и Nginx, а также запустит брокер Kafka. В Compose адрес брокера задаётся как `kafka:9092`; значения `KAFKA_BROKERS` в `.env` используются при локальном запуске Go-процессов вне Compose. Nginx автоматически создаст самоподписанный сертификат и сохранит его вместе с ключом в Docker volume.
 
 3. Откройте:
    - API и Swagger UI: <https://localhost/swagger/index.html>
@@ -123,7 +136,7 @@ HTTP API Gateway передаёт запросы бронирований это
 docker compose down
 ```
 
-Данные PostgreSQL, Redis и TLS-сертификат хранятся в именованных Docker volumes. Для остановки с сохранением данных не добавляйте `-v` к `docker compose down`.
+Данные PostgreSQL, Redis, Kafka и TLS-сертификат хранятся в именованных Docker volumes. Для остановки с сохранением данных не добавляйте `-v` к `docker compose down`.
 
 ## API
 
@@ -153,6 +166,9 @@ Authorization: Bearer <access_token>
 ```bash
 make migrate-up
 ```
+
+Миграция `0003_booking_event_outbox` создаёт таблицу transactional outbox для Kafka.
+Её необходимо применить до создания бронирований новой версией сервиса.
 
 Откатить последнюю миграцию:
 
@@ -193,8 +209,11 @@ internal/config/         Загрузка конфигурации и подкл
 internal/db/             Код SQL, сгенерированный sqlc
 internal/domain/          Доменные модели и интерфейсы
 internal/repository/      Реализации репозиториев PostgreSQL и Redis
+internal/messaging/kafka/ Kafka producer, consumer и настройки подключения
+internal/outbox/          Публикация событий из transactional outbox
 internal/service/         Бизнес-логика
 migrations/              SQL-миграции PostgreSQL
+cmd/kafka-consumer/       Демонстрационный consumer событий бронирований
 nginx/                   Конфигурация HTTPS reverse proxy и генерация dev-сертификата
 pkg/                     Общие пакеты: ошибки, логирование и безопасность
 queries/                 SQL-запросы для sqlc

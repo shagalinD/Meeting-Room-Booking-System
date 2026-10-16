@@ -2,8 +2,12 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -97,10 +101,153 @@ func (br *BookingRepository) Create(ctx context.Context, booking *domain.Booking
 		return "", err
 	}
 
+	if err := insertBookingCreatedEvent(ctx, tx, booking_id, booking); err != nil {
+		return "", fmt.Errorf("insert booking.created outbox event: %w", err)
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return "", MapError(err)
 	}
 	return booking_id.String(), nil
+}
+
+type bookingCreatedEvent struct {
+	ID            string                  `json:"id"`
+	Type          string                  `json:"type"`
+	SchemaVersion int                     `json:"schema_version"`
+	OccurredAt    time.Time               `json:"occurred_at"`
+	Data          bookingCreatedEventData `json:"data"`
+}
+
+type bookingCreatedEventData struct {
+	BookingID string    `json:"booking_id"`
+	UserID    string    `json:"user_id"`
+	RoomID    string    `json:"room_id"`
+	Title     string    `json:"title"`
+	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time"`
+	Status    string    `json:"status"`
+}
+
+func insertBookingCreatedEvent(ctx context.Context, tx pgx.Tx, bookingID pgtype.UUID, booking *domain.Booking) error {
+	eventID := uuid.New()
+	event := bookingCreatedEvent{
+		ID:            eventID.String(),
+		Type:          "booking.created",
+		SchemaVersion: 1,
+		OccurredAt:    time.Now().UTC(),
+		Data: bookingCreatedEventData{
+			BookingID: bookingID.String(),
+			UserID:    booking.UserId,
+			RoomID:    booking.RoomId,
+			Title:     booking.Title,
+			StartTime: booking.StartTime,
+			EndTime:   booking.EndTime,
+			Status:    booking.Status,
+		},
+	}
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("marshal booking.created event: %w", err)
+	}
+
+	_, err = tx.Exec(ctx, `
+		INSERT INTO booking_event_outbox (id, aggregate_id, event_type, payload)
+		VALUES ($1, $2, $3, $4::jsonb)
+	`, eventID, bookingID, event.Type, payload)
+	if err != nil {
+		return fmt.Errorf("store booking.created event: %w", err)
+	}
+	return nil
+}
+
+func (br *BookingRepository) ClaimOutboxEvents(ctx context.Context, workerID string, limit int, lease time.Duration) ([]domain.OutboxEvent, error) {
+	if workerID == "" || limit <= 0 || lease <= 0 {
+		return nil, errors.New("worker ID, positive batch size, and positive lease are required")
+	}
+
+	tx, err := br.pool.Begin(ctx)
+	if err != nil {
+		return nil, MapError(err)
+	}
+	defer tx.Rollback(ctx)
+
+	rows, err := tx.Query(ctx, `
+		WITH claimable AS (
+			SELECT id
+			FROM booking_event_outbox
+			WHERE published_at IS NULL
+			  AND (locked_until IS NULL OR locked_until <= NOW())
+			ORDER BY created_at, id
+			LIMIT $3
+			FOR UPDATE SKIP LOCKED
+		)
+		UPDATE booking_event_outbox AS events
+		SET locked_by = $1,
+		    locked_until = NOW() + ($2 * INTERVAL '1 millisecond'),
+		    attempts = attempts + 1
+		FROM claimable
+		WHERE events.id = claimable.id
+		RETURNING events.id::text, events.aggregate_id::text, events.event_type, events.payload
+	`, workerID, lease.Milliseconds(), limit)
+	if err != nil {
+		return nil, MapError(err)
+	}
+	defer rows.Close()
+
+	events := make([]domain.OutboxEvent, 0)
+	for rows.Next() {
+		var event domain.OutboxEvent
+		if err := rows.Scan(&event.ID, &event.Key, &event.EventType, &event.Payload); err != nil {
+			return nil, MapError(err)
+		}
+		events = append(events, event)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, MapError(err)
+	}
+	rows.Close()
+	if err := tx.Commit(ctx); err != nil {
+		return nil, MapError(err)
+	}
+	return events, nil
+}
+
+func (br *BookingRepository) MarkOutboxEventPublished(ctx context.Context, eventID, workerID string) error {
+	tag, err := br.pool.Exec(ctx, `
+		UPDATE booking_event_outbox
+		SET published_at = NOW(), locked_by = NULL, locked_until = NULL, last_error = NULL
+		WHERE id = $1 AND locked_by = $2 AND published_at IS NULL
+	`, eventID, workerID)
+	if err != nil {
+		return MapError(err)
+	}
+	if tag.RowsAffected() != 1 {
+		return fmt.Errorf("outbox event %s is no longer owned by worker %s", eventID, workerID)
+	}
+	return nil
+}
+
+func (br *BookingRepository) ReleaseOutboxEvent(ctx context.Context, eventID, workerID string, publishErr error) error {
+	if publishErr == nil {
+		return errors.New("publish error is required to release an outbox event")
+	}
+	message := publishErr.Error()
+	if runeCount := len([]rune(message)); runeCount > 1024 {
+		message = string([]rune(message)[:1024])
+	}
+	tag, err := br.pool.Exec(ctx, `
+		UPDATE booking_event_outbox
+		SET locked_by = NULL, locked_until = NULL, last_error = $3
+		WHERE id = $1 AND locked_by = $2 AND published_at IS NULL
+	`, eventID, workerID, message)
+	if err != nil {
+		return MapError(err)
+	}
+	if tag.RowsAffected() != 1 {
+		return fmt.Errorf("outbox event %s is no longer owned by worker %s", eventID, workerID)
+	}
+	return nil
 }
 
 func getIntersections(ctx context.Context, br *BookingRepository, roomId pgtype.UUID, startTime, endTime pgtype.Timestamptz) (bool, error) {
